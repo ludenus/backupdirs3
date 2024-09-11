@@ -1,0 +1,10 @@
+/.idea/
+*.iml
+
+*.log
+
+.vscode/
+
+**.DS_Store
+
+watched/

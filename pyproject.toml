@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "python-inotify"
+version = "0.1.0"
+description = ""
+authors = ["VM 82 <vm-82@vagrant.vm>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+inotify = "^0.2.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
