@@ -22,7 +22,7 @@ def _main():
     pprint(events)
     print("~~~~~~~~~~~  second call")
     with open(filename, 'a') as file:
-        file.write(datetime.now().isoformat()+"seconds call")
+        file.write(datetime.now().isoformat()+"second call")
 
     events = i.event_gen(yield_nones=False, timeout_s=1)
     events = list(events)
