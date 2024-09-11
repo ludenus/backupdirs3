@@ -25,6 +25,8 @@ poetry --version
 ```bash
 
 poetry shell
+poetry install
+poetry show
 
 python python_inotify/main.py
 ```
