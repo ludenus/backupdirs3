@@ -87,17 +87,18 @@ def inotify_check():
     events = list(events)
     pprint(events)
 
-
+# Function to check python version
 def check_python_version():
     major, minor = sys.version_info.major, sys.version_info.minor
     if major < 3 or (major == 3 and minor < 7):
-        print("Warning: You are using Python version {}.{}. Dictionary key order may not be preserved."
+        print("WARNING: You are using Python version {}.{}. Dictionary key order may not be preserved."
               .format(major, minor))
     else:
-        print("You are using Python version {}.{}. Dictionary key order will be preserved."
+        print("INFO: You are using Python version {}.{}. Dictionary key order will be preserved."
               .format(major, minor))
 
 def _main():
+    check_python_version()
     cwd = os.getcwd()
     watched_dir = f"{cwd}/watched"
 
