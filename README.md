@@ -12,7 +12,7 @@ curl -sSL https://install.python-poetry.org | python3 -
 
 Update PATH your shell configuration file
 ```bash
-export PATH="/home/vagrant/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 Check poetry is installed correctly:
