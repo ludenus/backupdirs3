@@ -132,20 +132,8 @@ def diff_dir():
         print("Metadata is the same")
 
 
-# Function to check for file changes using inotify
-def inotify_check(directory):
-    print(f"watched_dir: {directory}")
-    i = inotify.adapters.InotifyTree(directory)
-    with open(f"{directory}/file.log", 'a') as file:
-        file.write(datetime.now().isoformat())
-    events = i.event_gen(yield_nones=False, timeout_s=1)
-    events = list(events)
-    pprint(events)
-
-
 def monitor_changes(directory):
     i = inotify.adapters.InotifyTree(directory)
-    # i.add_watch(directory, mask=inotify.constants.IN_CREATE | inotify.constants.IN_DELETE | inotify.constants.IN_MODIFY)
     print(f"Monitoring started on: {directory}")
     
     try:
@@ -172,7 +160,6 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 directory = sys.argv[1]
-
 
 def _main():
     if ("/" == os.path.realpath(directory)):
