@@ -11,4 +11,4 @@ poetry run poetry export -f requirements.txt --output requirements.txt --without
 poetry run pip install pyinstaller
 poetry run pyinstaller --onefile python_inotify/main.py
 
-cp ./dist.main ./dist/inotify
+cp ./dist/main ./dist/inotify
