@@ -1,11 +1,15 @@
-import inotify.adapters
-import os
-import time
-import hashlib
-import zlib
-import sys
-from pprint import pprint
 from datetime import datetime
+from pprint import pprint
+import hashlib
+import inotify.adapters
+import logging
+import os
+import sys
+import time
+import zlib
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+
 
 # Decorator to measure execution time of a function
 def time_this(func):
@@ -87,18 +91,7 @@ def compare_dictionaries(dict1, dict2):
             }
     return differences
 
-# Function to check for file changes using inotify
-def inotify_check():
-    cwd = os.getcwd()
-    watched_dir = f"{cwd}/watched"
-    filename= f"{watched_dir}/file.log"
-    print(f"watched_dir: {watched_dir}")
-    i = inotify.adapters.InotifyTree(watched_dir)
-    with open(filename, 'a') as file:
-        file.write(datetime.now().isoformat())
-    events = i.event_gen(yield_nones=False, timeout_s=1)
-    events = list(events)
-    pprint(events)
+
 
 # Function to check python version
 def check_python_version():
@@ -110,7 +103,7 @@ def check_python_version():
         print("INFO: You are using Python version {}.{}. Dictionary key order will be preserved."
               .format(major, minor))
 
-def _main():
+def diff_dir():
     check_python_version()
     cwd = os.getcwd()
     watched_dir = f"{cwd}/watched"
@@ -138,6 +131,41 @@ def _main():
     else:
         print("Metadata is the same")
 
+# Function to check for file changes using inotify
+def inotify_check(directory):
+
+    print(f"watched_dir: {directory}")
+    i = inotify.adapters.InotifyTree(directory)
+    with open(f"{directory}/file.log", 'a') as file:
+        file.write(datetime.now().isoformat())
+    events = i.event_gen(yield_nones=False, timeout_s=1)
+    events = list(events)
+    pprint(events)
+
+def monitor_changes(directory):
+    i = inotify.adapters.InotifyTree(directory)
+    # i.add_watch(directory, mask=inotify.constants.IN_CREATE | inotify.constants.IN_DELETE | inotify.constants.IN_MODIFY)
+    logging.info(f"Monitoring started on: {directory}")
+    
+    try:
+        for event in i.event_gen(yield_nones=False):
+            (_, type_names, path, filename) = event
+            for event_type in type_names:
+                full_path = f"{path}/{filename}"
+                if event_type == 'IN_CREATE':
+                    logging.info(f"File created: {full_path}")
+                elif event_type == 'IN_DELETE':
+                    logging.info(f"File deleted: {full_path}")
+                elif event_type == 'IN_MODIFY':
+                    logging.info(f"File modified: {full_path}")
+    except KeyboardInterrupt:
+        logging.info("Monitoring stopped.")
+
+        
+def _main():
+    cwd = os.getcwd()
+    watched_dir = f"{cwd}/watched"
+    monitor_changes(watched_dir)
     print("ok")
 
 if __name__ == '__main__':
