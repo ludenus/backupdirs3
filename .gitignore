@@ -8,3 +8,11 @@
 **.DS_Store
 
 watched/
+.watched/
+
+build/
+dist/
+
+*.spec
+requirements.txt
+
