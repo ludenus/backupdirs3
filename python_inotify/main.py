@@ -74,6 +74,19 @@ def get_files_metadata(directory):
                 file_metadata_map[file_path] = "Permission Denied"
     return file_metadata_map
 
+# Function to compare two dictionaries and return differences
+def compare_dictionaries(dict1, dict2):
+    differences = {}
+    all_keys = set(dict1.keys()).union(set(dict2.keys()))
+    
+    for key in all_keys:
+        if dict1.get(key) != dict2.get(key):
+            differences[key] = {
+                'old_value': dict1.get(key),
+                'new_value': dict2.get(key)
+            }
+    return differences
+
 # Function to check for file changes using inotify
 def inotify_check():
     cwd = os.getcwd()
@@ -112,8 +125,19 @@ def _main():
     sums2 = get_sha1_checksums(watched_dir)
     metas2 = get_files_metadata(watched_dir)
 
-    print(sums1==sums2)
-    print(metas1==metas2)
+    if(sums1!=sums2):
+        print("Checksums are different")
+        pprint(compare_dictionaries(sums1, sums2))
+    else:
+        print("Checksums are the same")
+
+
+    if(metas1!=metas2):
+        print("Metadata is different")
+        pprint(compare_dictionaries(metas1, metas2))
+    else:
+        print("Metadata is the same")
+
     print("ok")
 
 if __name__ == '__main__':
