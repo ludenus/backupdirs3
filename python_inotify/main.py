@@ -98,14 +98,13 @@ def compare_dictionaries(dict1, dict2):
 def check_python_version():
     major, minor = sys.version_info.major, sys.version_info.minor
     if major < 3 or (major == 3 and minor < 7):
-        print("WARNING: You are using Python version {}.{}. Dictionary key order may not be preserved."
-              .format(major, minor))
+        print("WARNING: You are using Python version {}.{}. Dictionary key order may not be preserved.".format(major, minor))
     else:
-        print("INFO: You are using Python version {}.{}. Dictionary key order will be preserved."
-              .format(major, minor))
+        print("INFO: You are using Python version {}.{}. Dictionary key order will be preserved.".format(major, minor))
 
 
 def diff_dir():
+    
     check_python_version()
     cwd = os.getcwd()
     watched_dir = f"{cwd}/watched"
