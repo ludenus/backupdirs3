@@ -2,13 +2,10 @@ from datetime import datetime
 from pprint import pprint
 import hashlib
 import inotify.adapters
-import logging
 import os
 import sys
 import time
 import zlib
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
 
 # Decorator to measure execution time of a function
@@ -145,7 +142,7 @@ def inotify_check(directory):
 def monitor_changes(directory):
     i = inotify.adapters.InotifyTree(directory)
     # i.add_watch(directory, mask=inotify.constants.IN_CREATE | inotify.constants.IN_DELETE | inotify.constants.IN_MODIFY)
-    logging.info(f"Monitoring started on: {directory}")
+    print(f"Monitoring started on: {directory}")
     
     try:
         for event in i.event_gen(yield_nones=False):
@@ -153,19 +150,29 @@ def monitor_changes(directory):
             for event_type in type_names:
                 full_path = f"{path}/{filename}"
                 if event_type == 'IN_CREATE':
-                    logging.info(f"File created: {full_path}")
+                    print(f"File created: {full_path}")
                 elif event_type == 'IN_DELETE':
-                    logging.info(f"File deleted: {full_path}")
+                    print(f"File deleted: {full_path}")
                 elif event_type == 'IN_MODIFY':
-                    logging.info(f"File modified: {full_path}")
+                    print(f"File modified: {full_path}")
+                elif event_type == 'IN_MOVED_FROM':
+                    print(f"File moved from: {full_path}")
+                elif event_type == 'IN_MOVED_TO':
+                    print(f"File moved to: {full_path}")
     except KeyboardInterrupt:
-        logging.info("Monitoring stopped.")
+        print("Monitoring stopped.")
 
         
+
+if len(sys.argv) < 2:
+    print("Usage: python main.py <directory>")
+    sys.exit(1)
+
+directory = sys.argv[1]
+
 def _main():
     cwd = os.getcwd()
-    watched_dir = f"{cwd}/watched"
-    monitor_changes(watched_dir)
+    monitor_changes(os.path.realpath(directory))
     print("ok")
 
 if __name__ == '__main__':
