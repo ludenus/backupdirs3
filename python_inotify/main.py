@@ -10,6 +10,7 @@ import zlib
 
 # Decorator to measure execution time of a function
 def time_this(func):
+
     def wrapped(*args, **kwargs):
         start_time = time.perf_counter()
         result = func(*args, **kwargs)
@@ -17,6 +18,7 @@ def time_this(func):
         execution_time_ms = (end_time - start_time) * 1000  # Convert to milliseconds
         print(f"Function '{func.__name__}' execution time: {execution_time_ms:.6f} milliseconds")  # Print function name and execution time
         return result
+
     return wrapped
 
 
@@ -38,6 +40,7 @@ def get_sha1_checksums(directory):
                 print(f"Error processing {file_path}: {e}")
     return checksums
 
+
 @time_this
 # Function to get CRC32 checksums of files in a directory
 def get_crc32_checksums(directory):
@@ -55,6 +58,7 @@ def get_crc32_checksums(directory):
             except Exception as e:
                 print(f"Error processing {file_path}: {e}")
     return checksums
+
 
 @time_this
 # Function to get metadata of files in a directory
@@ -75,6 +79,7 @@ def get_files_metadata(directory):
                 file_metadata_map[file_path] = "Permission Denied"
     return file_metadata_map
 
+
 # Function to compare two dictionaries and return differences
 def compare_dictionaries(dict1, dict2):
     differences = {}
@@ -89,7 +94,6 @@ def compare_dictionaries(dict1, dict2):
     return differences
 
 
-
 # Function to check python version
 def check_python_version():
     major, minor = sys.version_info.major, sys.version_info.minor
@@ -100,6 +104,7 @@ def check_python_version():
         print("INFO: You are using Python version {}.{}. Dictionary key order will be preserved."
               .format(major, minor))
 
+
 def diff_dir():
     check_python_version()
     cwd = os.getcwd()
@@ -108,29 +113,28 @@ def diff_dir():
     sums1 = get_sha1_checksums(watched_dir)
     metas1 = get_files_metadata(watched_dir)
 
-    filename= f"{watched_dir}/file.log"
+    filename = f"{watched_dir}/file.log"
     with open(filename, 'a') as file:
         file.write(datetime.now().isoformat())
     
     sums2 = get_sha1_checksums(watched_dir)
     metas2 = get_files_metadata(watched_dir)
 
-    if(sums1!=sums2):
+    if(sums1 != sums2):
         print("Checksums are different")
         pprint(compare_dictionaries(sums1, sums2))
     else:
         print("Checksums are the same")
 
-
-    if(metas1!=metas2):
+    if(metas1 != metas2):
         print("Metadata is different")
         pprint(compare_dictionaries(metas1, metas2))
     else:
         print("Metadata is the same")
 
+
 # Function to check for file changes using inotify
 def inotify_check(directory):
-
     print(f"watched_dir: {directory}")
     i = inotify.adapters.InotifyTree(directory)
     with open(f"{directory}/file.log", 'a') as file:
@@ -138,6 +142,7 @@ def inotify_check(directory):
     events = i.event_gen(yield_nones=False, timeout_s=1)
     events = list(events)
     pprint(events)
+
 
 def monitor_changes(directory):
     i = inotify.adapters.InotifyTree(directory)
@@ -161,7 +166,6 @@ def monitor_changes(directory):
                     print(f"File moved to: {full_path}")
     except KeyboardInterrupt:
         print("Monitoring stopped.")
-
         
 
 if len(sys.argv) < 2:
@@ -170,10 +174,15 @@ if len(sys.argv) < 2:
 
 directory = sys.argv[1]
 
+
 def _main():
-    cwd = os.getcwd()
+    if ("/" == os.path.realpath(directory)):
+        print("ERROR: cannot monitor root directory /")
+        sys.exit(11)
+
     monitor_changes(os.path.realpath(directory))
     print("ok")
+
 
 if __name__ == '__main__':
     _main()
