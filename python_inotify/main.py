@@ -5,7 +5,6 @@ import inotify.adapters
 import os
 import sys
 import time
-import zlib
 
 
 # Decorator to measure execution time of a function
@@ -39,26 +38,6 @@ def get_sha1_checksums(directory):
             except Exception as e:
                 print(f"Error processing {file_path}: {e}")
     return checksums
-
-
-@time_this
-# Function to get CRC32 checksums of files in a directory
-def get_crc32_checksums(directory):
-    checksums = {}
-    for root, dirs, files in os.walk(directory):
-        files.sort()
-        for file in files:
-            file_path = os.path.join(root, file)
-            crc32 = 0
-            try:
-                with open(file_path, "rb") as f:
-                    for chunk in iter(lambda: f.read(4096), b""):
-                        crc32 = zlib.crc32(chunk, crc32)
-                checksums[file_path] = format(crc32 & 0xFFFFFFFF, '08x')  # Format as hex
-            except Exception as e:
-                print(f"Error processing {file_path}: {e}")
-    return checksums
-
 
 @time_this
 # Function to get metadata of files in a directory
@@ -103,21 +82,19 @@ def check_python_version():
         print("INFO: You are using Python version {}.{}. Dictionary key order will be preserved.".format(major, minor))
 
 
-def diff_dir():
+def diff_dir(directory):
     
     check_python_version()
-    cwd = os.getcwd()
-    watched_dir = f"{cwd}/watched"
 
-    sums1 = get_sha1_checksums(watched_dir)
-    metas1 = get_files_metadata(watched_dir)
+    sums1 = get_sha1_checksums(directory)
+    metas1 = get_files_metadata(directory)
 
-    filename = f"{watched_dir}/file.log"
+    filename = f"{directory}/file.log"
     with open(filename, 'a') as file:
         file.write(datetime.now().isoformat())
     
-    sums2 = get_sha1_checksums(watched_dir)
-    metas2 = get_files_metadata(watched_dir)
+    sums2 = get_sha1_checksums(directory)
+    metas2 = get_files_metadata(directory)
 
     if(sums1 != sums2):
         print("Checksums are different")
