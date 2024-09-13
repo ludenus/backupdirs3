@@ -8,8 +8,12 @@ if [ -z "$VERSION" ]; then
 fi
     
 poetry install
+poetry show
 poetry export -f requirements.txt --output requirements.txt --without-hashes
 pip install pyinstaller
-pyinstaller --clean --noupx --onefile python_inotify/main.py
+pip list
+pyinstaller --version
+pyinstaller --clean  main.spec
 
 cp ./dist/main ./dist/inotify
+ls -pilaF ./dist

@@ -13,6 +13,5 @@ watched/
 build/
 dist/
 
-*.spec
 requirements.txt
 
