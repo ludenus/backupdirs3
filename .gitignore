@@ -1,8 +1,6 @@
 /.idea/
 *.iml
 
-*.log
-
 .vscode/
 
 **.DS_Store
@@ -13,5 +11,6 @@ watched/
 build/
 dist/
 
+*.spec
 requirements.txt
-
+*.log
