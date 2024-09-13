@@ -10,6 +10,6 @@ fi
 poetry install
 poetry export -f requirements.txt --output requirements.txt --without-hashes
 pip install pyinstaller
-pyinstaller --onefile python_inotify/main.py
+pyinstaller --clean --noupx --onefile python_inotify/main.py
 
 cp ./dist/main ./dist/inotify

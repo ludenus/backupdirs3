@@ -44,3 +44,23 @@ jobs:
         asset_path: ./dist/inotify
         asset_name: inotify
         asset_content_type: application/octet-stream
+
+    - name: Upload Package Info 1
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/main/warn-main.txt
+        asset_name: warn-main.txt
+        asset_content_type: application/octet-stream
+
+    - name: Upload Package Info 2
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/main/xref-main.html
+        asset_name: xref-main.html
+        asset_content_type: application/octet-stream
