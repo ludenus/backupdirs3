@@ -11,9 +11,7 @@ poetry install
 poetry show
 poetry export -f requirements.txt --output requirements.txt --without-hashes
 pip install pyinstaller
-pip list
-pyinstaller --version
-pyinstaller --clean  main.spec
+pyinstaller --clean --noupx --onefile python_inotify/main.py
 
 pyi-archive_viewer -l dist/main
 

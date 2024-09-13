@@ -13,11 +13,6 @@ jobs:
     - uses: actions/checkout@v2
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
 
-    # - name: Set up Python
-    #   uses: actions/setup-python@v2
-    #   with:
-    #     python-version: '3.10'
-
     - name: Install dependencies and build your project
       run: |
         set -x
@@ -46,24 +41,4 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./dist/inotify
         asset_name: inotify
-        asset_content_type: application/octet-stream
-
-    - name: Upload Package Info 1
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./build/main/warn-main.txt
-        asset_name: warn-main.txt
-        asset_content_type: application/octet-stream
-
-    - name: Upload Package Info 2
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./build/main/xref-main.html
-        asset_name: xref-main.html
         asset_content_type: application/octet-stream
