@@ -1,0 +1,3 @@
+config_dir_src: ./watched #/opt/n3uron/config
+s3_bucket_dst: aa-test-n3uron-backup
+
