@@ -23,7 +23,7 @@ exe = EXE(
     a.datas,
     [],
     name='main',
-    debug=False,
+    debug=True,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,

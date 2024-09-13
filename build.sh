@@ -15,5 +15,7 @@ pip list
 pyinstaller --version
 pyinstaller --clean  main.spec
 
+pyi-archive_viewer -l dist/main
+
 cp ./dist/main ./dist/inotify
 ls -pilaF ./dist
