@@ -7,6 +7,7 @@ import hashlib
 import inotify.adapters
 import logging
 import os
+import re
 import sys
 import tempfile
 import time
@@ -14,74 +15,13 @@ import yaml
 import zipfile
 
 VERSION = "0.0.8-2-gb75013a"
-DEFAULT_CONFIG_ENVVAR_PREFIX = "CONFIGMON"
-DEFAULT_CONFIG_PATHS = [
-    "/etc/powerfactors/configmon.yaml",
-    "/etc/powerfactors/configmon.yml",
-    # "configmon.yaml",
-    # "configmon.yml",
-]
-
-settings = {}
+DEFAULT_CONFIG_YAML = "/etc/powerfactors/configmon.yaml"
+DEFAULT_MONITORED_DIR = "/opt/n3uron/config"
+DEFAULT_S3_BUCKET = "n3uron-backup"
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s: [%(name)s] %(message)s"
 )
-
-
-def load_config(path):
-    with open(path, 'r') as file:
-        config = yaml.safe_load(file)
-    return config
-
-def init():
-
-    parser = argparse.ArgumentParser(
-        description="This tool monitors a config directory for changes and backups the changes to S3"
-    )
-    parser.add_argument(
-        "-v", "--version", action="version", version=f"%(prog)s {VERSION}"
-    )
-    parser.add_argument(
-        "-c",
-        "--config-file",
-        type=str,
-        metavar="config.yaml",
-        help=f"yaml config file to use instead of default chain: {DEFAULT_CONFIG_PATHS}",
-    )
-    args = parser.parse_args()
-
-    settings = load_config("/etc/powerfactors/configmon.yaml")
-    logging.info(f"config loaded: {settings}")
-    if not os.path.isdir(settings['config_dir_src']):
-        logging.error(
-            f"not an existing directory! config_dir_src: {settings['config_dir_src']}"
-        )
-        sys.exit(11)
-    if "/" == os.path.realpath(settings['config_dir_src']):
-        logging.error(
-            f"cannot monitor system root directory! config_dir_src: {settings['config_dir_src']}"
-        )
-        sys.exit(12)
-
-    settings["resolved_config_dir"] = os.path.realpath(settings['config_dir_src'])
-
-    s3 = boto3.resource("s3")
-    bucket_exists = False
-    for bucket in s3.buckets.all():
-        if settings['s3_bucket_dst'] == bucket.name:
-            bucket_exists = True
-            break
-    if not bucket_exists:
-        logging.error(f"s3 bucket does not exist s3_bucket_dst: {settings['s3_bucket_dst']}")
-        sys.exit(13)
-
-    # logging.info(bucket.name)
-
-    settings["resolved_s3_bucket_dst"] = settings['s3_bucket_dst']
-
-    logging.info(f"config resolved: {settings}")
-    return settings
 
 
 # Decorator to measure execution time of a function
@@ -207,26 +147,33 @@ def zip_directory(folder_path, output_path):
                 )
 
 
-def do_backup(directory):
+def get_backup_file_name():
+    return f"{config.node_name}/{config.node_name}-backup-{get_iso8601_timestamp()}.zip"
+
+
+def do_backup(directory, s3_bucket):
     temp_zip = tempfile.NamedTemporaryFile(
         delete=False, prefix="backup_", suffix=".zip"
     )
     temp_path = os.path.realpath(temp_zip.name)
-    zip_directory(directory, temp_path)
-    temp_size = os.path.getsize(temp_path)
-    logging.info(f"zip file ({temp_size}) bytes: {temp_path}")
-    aws_s3_upload(
-        temp_path, "aa-test-n3uron-backup", f"{get_iso8601_timestamp()}/backup.zip"
-    )
+    try:
+        zip_directory(directory, temp_path)
+        temp_size = os.path.getsize(temp_path)
+        logging.info(f"temp zip file ({temp_size}) bytes: {temp_path}")
+        aws_s3_upload(temp_path, s3_bucket, get_backup_file_name())
+    finally:
+        temp_zip.close()
+        os.remove(temp_path)
 
-
-def monitor_changes(directory):
+def monitor_changes():
+    directory = config.monitored_dir
+    s3_bucket = config.s3_bucket
     i = inotify.adapters.InotifyTree(directory)
     logging.info(f"Monitoring started on: {directory}")
 
     try:
         while True:
-            config_dir_updated = False
+            need_to_backup_config = False
             for event in i.event_gen(yield_nones=False, timeout_s=10):
                 (_, type_names, path, filename) = event
                 for event_type in type_names:
@@ -238,13 +185,13 @@ def monitor_changes(directory):
                         "IN_MOVED_TO",
                         "IN_MOVED_FROM",
                     ]:
-                        logging.info(f"inotify {event_type}: {full_path}")
-                        config_dir_updated = True
-            if config_dir_updated:
-                do_backup(directory)
-                config_dir_updated = False
+                        logging.info(f"change detected {event_type}: {full_path}")
+                        need_to_backup_config = True
+            if need_to_backup_config:
+                do_backup(directory, s3_bucket)
+                need_to_backup_config = False
             else:
-                logging.debug(f"No changes detected so far in {directory}")
+                logging.debug(f"no changes detected so far in {directory}")
     except KeyboardInterrupt:
         logging.info("Monitoring stopped.")
 
@@ -266,9 +213,96 @@ def aws_s3_ls():
         logging.info(bucket.name)
 
 
+@time_this
 def aws_s3_upload(local_file, remote_bucket, remote_file):
     s3 = boto3.resource("s3")
     s3.meta.client.upload_file(local_file, remote_bucket, remote_file)
+    logging.info(f"uploaded: {local_file} to aws s3 {remote_bucket}/{remote_file}")
+
+
+def validate_config_dir(config_dir):
+    if not os.path.isdir(config_dir):
+        logging.error(f"directory not exists monitored_dir: {config_dir}")
+        sys.exit(11)
+    if "/" == os.path.realpath(config_dir):
+        logging.error(
+            f"cannot monitor system root directory! monitored_dir: {config_dir}"
+        )
+        sys.exit(12)
+    return os.path.realpath(config_dir)
+
+
+def validate_s3_bucket(s3_bucket):
+    s3 = boto3.resource("s3")
+    bucket_exists = False
+    for bucket in s3.buckets.all():
+        if s3_bucket == bucket.name:
+            bucket_exists = True
+            break
+    if not bucket_exists:
+        logging.error(f"s3 bucket does not exist s3_bucket: {s3_bucket}")
+        sys.exit(13)
+    return s3_bucket
+
+
+def validate_node_name(node_name):
+    regex = r"^[a-z0-9.-]+$"
+    pattern = re.compile(regex)
+    if not pattern.match(node_name):
+        logging.error(f"does not match pattern /{regex}/   node_name: {node_name}")
+        sys.exit(13)
+    return node_name
+
+
+####################################################################################################
+# Init Config
+####################################################################################################
+
+
+def load_yaml(path):
+    logging.info(f"loading yaml file: {path}")
+    if not os.path.isfile(path):
+        logging.error(f"file not found: {path}")
+        exit(1)
+    with open(path, "r") as file:
+        config = yaml.safe_load(file)
+    return config
+
+
+class Config:
+    def __init__(self, yaml_file):
+        yaml = load_yaml(yaml_file)
+        logging.info(f"validating loaded config: {yaml}")
+        self.monitored_dir = validate_config_dir(
+            yaml.get("monitored_dir")
+            if yaml.get("monitored_dir")
+            else DEFAULT_MONITORED_DIR
+        )
+        self.s3_bucket = validate_s3_bucket(
+            yaml.get("s3_bucket") if yaml.get("s3_bucket") else DEFAULT_S3_BUCKET
+        )
+        self.node_name = validate_node_name(
+            yaml.get("node_name") if yaml.get("node_name") else os.uname().nodename
+        )
+
+
+parser = argparse.ArgumentParser(
+    description="This tool monitors a config directory for changes and backups the changes to S3"
+)
+parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {VERSION}")
+parser.add_argument(
+    "-c",
+    "--config-file",
+    type=str,
+    metavar="config.yaml",
+    help=f"yaml config file to use instead of default: {DEFAULT_CONFIG_YAML}",
+)
+args = parser.parse_args()
+
+if args.config_file:
+    config = Config(args.config_file)
+else:
+    config = Config(DEFAULT_CONFIG_YAML)
 
 
 ####################################################################################################
@@ -278,12 +312,10 @@ def aws_s3_upload(local_file, remote_bucket, remote_file):
 
 def _main():
 
-    logging.info(get_iso8601_timestamp())
-    cfg = init()
+    logging.info(f"config: {config.__dict__}")
     aws_s3_ls()
     # aws_s3_upload(f"{directory}/file.log", "aa-test-n3uron-backup", f"{get_iso8601_timestamp()}/file.log")
-
-    monitor_changes(os.path.realpath(cfg['resolved_config_dir']))
+    monitor_changes()
     logging.info("ok")
 
 
