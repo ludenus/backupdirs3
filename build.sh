@@ -11,7 +11,7 @@ poetry install
 poetry show
 poetry export -f requirements.txt --output requirements.txt --without-hashes
 pip install pyinstaller
-sed -ri "s/VERSION *= *'[0-9]+\.[0-9]+\.[0-9]+[^']+'/VERSION = '${VERSION}'/g" ./python_configmon/main.py
+sed -ri "s/VERSION *= *['\"][0-9]+\.[0-9]+\.[0-9]+[^'\"]+['\"]/VERSION = '${VERSION}'/g" ./python_configmon/main.py
 grep 'VERSION = ' ./python_configmon/main.py
 pyinstaller --clean --noupx --onefile python_configmon/main.py
 

@@ -14,7 +14,7 @@ import time
 import yaml
 import zipfile
 
-VERSION = "0.0.8-2-gb75013a"
+VERSION = '0.1.0'
 DEFAULT_CONFIG_YAML = "/etc/powerfactors/configmon.yaml"
 DEFAULT_MONITORED_DIR = "/opt/n3uron/config"
 DEFAULT_S3_BUCKET = "n3uron-backup"
