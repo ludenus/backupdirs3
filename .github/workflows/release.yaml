@@ -39,6 +39,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/inotify
-        asset_name: inotify
+        asset_path: ./dist/configmon
+        asset_name: configmon
         asset_content_type: application/octet-stream

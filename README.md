@@ -1,4 +1,4 @@
-# python-inotify
+# python-configmon
 
 ## Prerequisites
 * curl
@@ -28,5 +28,5 @@ poetry shell
 poetry install
 poetry show
 
-python python_inotify/main.py
+python python_configmon/main.py
 ```

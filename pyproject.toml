@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "python-inotify"
+name = "python-configmon"
 version = "0.1.0"
 description = ""
-authors = ["VM 82 <vm-82@vagrant.vm>"]
+authors = ["Andrey Andreyev <Andrey Andreyev>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
