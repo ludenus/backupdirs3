@@ -1,9 +1,7 @@
 from datetime import datetime
-from pprint import pprint
 from zoneinfo import ZoneInfo
 import argparse
 import boto3
-import hashlib
 import inotify.adapters
 import logging
 import os
@@ -14,10 +12,11 @@ import time
 import yaml
 import zipfile
 
-VERSION = '0.1.0'
+VERSION = "0.1.0"
 DEFAULT_CONFIG_YAML = "/etc/powerfactors/configmon.yaml"
 DEFAULT_MONITORED_DIR = "/opt/n3uron/config"
 DEFAULT_S3_BUCKET = "n3uron-backup"
+DEFAULT_UPLOAD_COOLDOWN_SECONDS = 10
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s: [%(name)s] %(message)s"
@@ -33,12 +32,11 @@ def time_this(func):
         end_time = time.perf_counter()
         execution_time_ms = (end_time - start_time) * 1000  # Convert to milliseconds
         logging.info(
-            f"Function '{func.__name__}' execution time: {execution_time_ms:.6f} milliseconds"
+            f"function '{func.__name__}' execution time: {execution_time_ms:.6f} milliseconds"
         )
         return result
 
     return wrapped
-
 
 @time_this
 # Function to get SHA1 checksums of files in a directory
@@ -59,78 +57,78 @@ def get_sha1_checksums(directory):
     return checksums
 
 
-@time_this
-# Function to get metadata of files in a directory
-def get_files_metadata(directory):
-    file_metadata_map = {}
-    for root, dirs, files in os.walk(directory):
-        files.sort()
-        for file in files:
-            file_path = os.path.join(root, file)
-            try:
-                stats = os.stat(file_path)
-                file_metadata_map[file_path] = stats
-            except FileNotFoundError:
-                # If file is deleted between finding it and statting it
-                continue
-            except PermissionError:
-                # If permission is not granted to read file stats
-                file_metadata_map[file_path] = "Permission Denied"
-    return file_metadata_map
+# @time_this
+# # Function to get metadata of files in a directory
+# def get_files_metadata(directory):
+#     file_metadata_map = {}
+#     for root, dirs, files in os.walk(directory):
+#         files.sort()
+#         for file in files:
+#             file_path = os.path.join(root, file)
+#             try:
+#                 stats = os.stat(file_path)
+#                 file_metadata_map[file_path] = stats
+#             except FileNotFoundError:
+#                 # If file is deleted between finding it and statting it
+#                 continue
+#             except PermissionError:
+#                 # If permission is not granted to read file stats
+#                 file_metadata_map[file_path] = "Permission Denied"
+#     return file_metadata_map
 
 
-# Function to compare two dictionaries and return differences
-def compare_dictionaries(dict1, dict2):
-    differences = {}
-    all_keys = set(dict1.keys()).union(set(dict2.keys()))
+# # Function to compare two dictionaries and return differences
+# def compare_dictionaries(dict1, dict2):
+#     differences = {}
+#     all_keys = set(dict1.keys()).union(set(dict2.keys()))
 
-    for key in all_keys:
-        if dict1.get(key) != dict2.get(key):
-            differences[key] = {
-                "old_value": dict1.get(key),
-                "new_value": dict2.get(key),
-            }
-    return differences
-
-
-# Function to check python version
-def check_python_version():
-    major, minor = sys.version_info.major, sys.version_info.minor
-    if major < 3 or (major == 3 and minor < 7):
-        logging.warning(
-            f"You are using Python version {major}.{minor}. Dictionary key order may NOT be preserved."
-        )
-    else:
-        logging.info(
-            f"You are using Python version {major}.{minor}. Dictionary key order will be preserved."
-        )
+#     for key in all_keys:
+#         if dict1.get(key) != dict2.get(key):
+#             differences[key] = {
+#                 "old_value": dict1.get(key),
+#                 "new_value": dict2.get(key),
+#             }
+#     return differences
 
 
-def diff_dir(directory):
+# # Function to check python version
+# def check_python_version():
+#     major, minor = sys.version_info.major, sys.version_info.minor
+#     if major < 3 or (major == 3 and minor < 7):
+#         logging.warning(
+#             f"You are using Python version {major}.{minor}. Dictionary key order may NOT be preserved."
+#         )
+#     else:
+#         logging.info(
+#             f"You are using Python version {major}.{minor}. Dictionary key order will be preserved."
+#         )
 
-    check_python_version()
 
-    sums1 = get_sha1_checksums(directory)
-    metas1 = get_files_metadata(directory)
+# def diff_dir(directory):
 
-    filename = f"{directory}/file.log"
-    with open(filename, "a") as file:
-        file.write(datetime.now().isoformat())
+#     check_python_version()
 
-    sums2 = get_sha1_checksums(directory)
-    metas2 = get_files_metadata(directory)
+#     sums1 = get_sha1_checksums(directory)
+#     metas1 = get_files_metadata(directory)
 
-    if sums1 != sums2:
-        logging.info("Checksums are different")
-        pprint(compare_dictionaries(sums1, sums2))
-    else:
-        logging.info("Checksums are the same")
+#     filename = f"{directory}/file.log"
+#     with open(filename, "a") as file:
+#         file.write(datetime.now().isoformat())
 
-    if metas1 != metas2:
-        logging.info("Metadata is different")
-        pprint(compare_dictionaries(metas1, metas2))
-    else:
-        logging.info("Metadata is the same")
+#     sums2 = get_sha1_checksums(directory)
+#     metas2 = get_files_metadata(directory)
+
+#     if sums1 != sums2:
+#         logging.info("Checksums are different")
+#         pprint(compare_dictionaries(sums1, sums2))
+#     else:
+#         logging.info("Checksums are the same")
+
+#     if metas1 != metas2:
+#         logging.info("Metadata is different")
+#         pprint(compare_dictionaries(metas1, metas2))
+#     else:
+#         logging.info("Metadata is the same")
 
 
 @time_this
@@ -174,7 +172,7 @@ def monitor_changes():
     try:
         while True:
             need_to_backup_config = False
-            for event in i.event_gen(yield_nones=False, timeout_s=10):
+            for event in i.event_gen(yield_nones=False, timeout_s=DEFAULT_UPLOAD_COOLDOWN_SECONDS):
                 (_, type_names, path, filename) = event
                 for event_type in type_names:
                     full_path = f"{path}/{filename}"
@@ -207,18 +205,16 @@ def get_iso8601_timestamp():
     return compact_timestamp
 
 
-def aws_s3_ls():
-    s3 = boto3.resource("s3")
-    for bucket in s3.buckets.all():
-        logging.info(bucket.name)
-
-
 @time_this
 def aws_s3_upload(local_file, remote_bucket, remote_file):
     s3 = boto3.resource("s3")
     s3.meta.client.upload_file(local_file, remote_bucket, remote_file)
     logging.info(f"uploaded: {local_file} to aws s3 {remote_bucket}/{remote_file}")
 
+
+####################################################################################################
+# Init Config
+####################################################################################################
 
 def validate_config_dir(config_dir):
     if not os.path.isdir(config_dir):
@@ -254,16 +250,11 @@ def validate_node_name(node_name):
     return node_name
 
 
-####################################################################################################
-# Init Config
-####################################################################################################
-
-
 def load_yaml(path):
     logging.info(f"loading yaml file: {path}")
     if not os.path.isfile(path):
         logging.error(f"file not found: {path}")
-        exit(1)
+        sys.exit(1)
     with open(path, "r") as file:
         config = yaml.safe_load(file)
     return config
@@ -313,8 +304,6 @@ else:
 def _main():
 
     logging.info(f"config: {config.__dict__}")
-    aws_s3_ls()
-    # aws_s3_upload(f"{directory}/file.log", "aa-test-n3uron-backup", f"{get_iso8601_timestamp()}/file.log")
     monitor_changes()
     logging.info("ok")
 
