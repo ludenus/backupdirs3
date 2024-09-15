@@ -320,7 +320,7 @@ class Config:
             resolve_chain("node_name", DEFAULT_NODE_NAME, args_dict, cfg)
         )
 
-        self.backup_name = validate_node_name(
+        self.backup_name = validate_backup_name(
             resolve_chain("backup_name", DEFAULT_BACKUP_NAME, args_dict, cfg)
         )
 
