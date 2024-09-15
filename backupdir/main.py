@@ -13,7 +13,7 @@ import time
 import yaml
 import zipfile
 
-VERSION = "0.1.1-5-g72e596c-dirty"
+VERSION = "0.2.0"
 DEFAULT_CONFIG_YAML = "/etc/backupdir/config.yaml"
 DEFAULT_S3_BUCKET = "backupdir-s3-bucket"
 DEFAULT_DELAY_BEFORE_UPLOAD = 10
@@ -44,23 +44,23 @@ def time_this(func):
     return wrapped
 
 
-@time_this
-# Function to get SHA1 checksums of files in a directory
-def get_sha1_checksums(directory):
-    checksums = {}
-    for root, dirs, files in os.walk(directory):
-        files.sort()
-        for file in files:
-            file_path = os.path.join(root, file)
-            hasher = hashlib.sha1()
-            try:
-                with open(file_path, "rb") as f:
-                    for chunk in iter(lambda: f.read(4096), b""):
-                        hasher.update(chunk)
-                checksums[file_path] = hasher.hexdigest()
-            except Exception as e:
-                logging.warning(f"Error processing {file_path}: {e}")
-    return checksums
+# @time_this
+# # Function to get SHA1 checksums of files in a directory
+# def get_sha1_checksums(directory):
+#     checksums = {}
+#     for root, dirs, files in os.walk(directory):
+#         files.sort()
+#         for file in files:
+#             file_path = os.path.join(root, file)
+#             hasher = hashlib.sha1()
+#             try:
+#                 with open(file_path, "rb") as f:
+#                     for chunk in iter(lambda: f.read(4096), b""):
+#                         hasher.update(chunk)
+#                 checksums[file_path] = hasher.hexdigest()
+#             except Exception as e:
+#                 logging.warning(f"Error processing {file_path}: {e}")
+#     return checksums
 
 
 # @time_this
