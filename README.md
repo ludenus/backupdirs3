@@ -55,3 +55,10 @@ monitored_dir: /opt/n3uron/config  # Directory to monitor for changes. Cannot be
 s3_bucket: my-backup-s3-bucket     # AWS S3 bucket for storing the backup zip files.
 node_name: my-hostname             # Optional. Prefix for backup files. Defaults to the system's hostname.
 ```
+
+## Future improvements
+
+1. include/exclude filters for files inside dir?
+2. encrypt zip archive before upload?
+3. one-time backup without monitor loop?
+4. backup to local dir only without s3 upload? 

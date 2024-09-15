@@ -14,10 +14,12 @@ import zipfile
 
 VERSION = "0.1.1-dirty"
 DEFAULT_CONFIG_YAML = "/etc/backupdir/config.yaml"
-DEFAULT_MONITORED_DIR = "/opt/n3uron/config"
-DEFAULT_S3_BUCKET = "n3uron-backup"
+DEFAULT_S3_BUCKET = "backupdir-backup"
 DEFAULT_UPLOAD_COOLDOWN_SECONDS = 10
-
+DEFAULT_KEEP_LOCAL_BACKUPS = False
+DEFAULT_LOCAL_BACKUP_DIR = tempfile.gettempdir()
+DEFAULT_NODE_NAME = os.uname().nodename
+DEFAULT_MONITORED_DIR = "/etc"
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s: [%(name)s] %(message)s"
 )
@@ -37,6 +39,7 @@ def time_this(func):
         return result
 
     return wrapped
+
 
 @time_this
 # Function to get SHA1 checksums of files in a directory
@@ -145,23 +148,37 @@ def zip_directory(folder_path, output_path):
                 )
 
 
-def get_backup_file_name():
-    return f"{config.node_name}/{config.node_name}-backup-{get_iso8601_timestamp()}.zip"
+def get_iso8601_timestamp(time):
+    return time.strftime("%Y%m%dT%H%M%S%z")
 
 
-def do_backup(directory, s3_bucket):
+def get_local_backup_file_prefix(time):
+    return f"{config.node_name}-backup-{get_iso8601_timestamp(time)}."
+
+
+def get_s3_backup_file_name(time):
+    return f"{config.node_name}/{config.node_name}-backup-{get_iso8601_timestamp(time)}.zip"
+
+
+def do_backup():
+    time = datetime.now(ZoneInfo("UTC"))
     temp_zip = tempfile.NamedTemporaryFile(
-        delete=False, prefix="backup_", suffix=".zip"
+        delete=False,
+        dir=config.local_backup_dir,
+        prefix=get_local_backup_file_prefix(time),
+        suffix=".zip",
     )
     temp_path = os.path.realpath(temp_zip.name)
     try:
-        zip_directory(directory, temp_path)
+        zip_directory(config.monitored_dir, temp_path)
         temp_size = os.path.getsize(temp_path)
         logging.info(f"temp zip file ({temp_size}) bytes: {temp_path}")
-        aws_s3_upload(temp_path, s3_bucket, get_backup_file_name())
+        aws_s3_upload(temp_path, config.s3_bucket, get_s3_backup_file_name(time))
     finally:
         temp_zip.close()
-        os.remove(temp_path)
+        if not config.keep_local_backups:
+            os.remove(temp_path)
+
 
 def monitor_changes():
     directory = config.monitored_dir
@@ -172,7 +189,9 @@ def monitor_changes():
     try:
         while True:
             need_to_backup_config = False
-            for event in i.event_gen(yield_nones=False, timeout_s=DEFAULT_UPLOAD_COOLDOWN_SECONDS):
+            for event in i.event_gen(
+                yield_nones=False, timeout_s=DEFAULT_UPLOAD_COOLDOWN_SECONDS
+            ):
                 (_, type_names, path, filename) = event
                 for event_type in type_names:
                     full_path = f"{path}/{filename}"
@@ -194,17 +213,6 @@ def monitor_changes():
         logging.info("Monitoring stopped.")
 
 
-def get_iso8601_timestamp():
-    # Get the current time with timezone
-    timezone = ZoneInfo("UTC")
-    current_time = datetime.now(timezone)
-
-    # Format the timestamp without dashes or colons
-    compact_timestamp = current_time.strftime("%Y%m%dT%H%M%S%z")
-
-    return compact_timestamp
-
-
 @time_this
 def aws_s3_upload(local_file, remote_bucket, remote_file):
     s3 = boto3.resource("s3")
@@ -216,7 +224,9 @@ def aws_s3_upload(local_file, remote_bucket, remote_file):
 # Init Config
 ####################################################################################################
 
-def validate_config_dir(config_dir):
+
+def validate_monitored_dir(config_dir):
+    logging.info(f"validating monitored_dir: {config_dir}")
     if not os.path.isdir(config_dir):
         logging.error(f"directory not exists monitored_dir: {config_dir}")
         sys.exit(11)
@@ -229,6 +239,7 @@ def validate_config_dir(config_dir):
 
 
 def validate_s3_bucket(s3_bucket):
+    logging.info(f"validating s3_bucket: {s3_bucket}")
     s3 = boto3.resource("s3")
     bucket_exists = False
     for bucket in s3.buckets.all():
@@ -242,6 +253,7 @@ def validate_s3_bucket(s3_bucket):
 
 
 def validate_node_name(node_name):
+    logging.info(f"validating node_name: {node_name}")
     regex = r"^[a-z0-9.-]+$"
     pattern = re.compile(regex)
     if not pattern.match(node_name):
@@ -249,52 +261,112 @@ def validate_node_name(node_name):
         sys.exit(13)
     return node_name
 
+def validate_local_backup_dir(local_backup_dir):
+    logging.info(f"validating local_backup_dir: {local_backup_dir}")
+    if not os.path.isdir(local_backup_dir):
+        logging.error(f"directory not exists local_backup_dir: {local_backup_dir}")
+        sys.exit(14)
+    return os.path.realpath(local_backup_dir)
 
 def load_yaml(path):
     logging.info(f"loading yaml file: {path}")
+    config = {}
     if not os.path.isfile(path):
-        logging.error(f"file not found: {path}")
-        sys.exit(1)
-    with open(path, "r") as file:
-        config = yaml.safe_load(file)
+        logging.warning(f"file not found: {path}")
+    else:
+        with open(path, "r") as file:
+            config = yaml.safe_load(file)
+            logging.info(f"yaml parsed: {config}")
     return config
 
 
+def resolve_chain(key, default, *args):
+    for arg in args:
+        logging.debug(f"resolve_chain looking for key: '{key}' in {arg}")
+        if key in arg and arg[key] != None:
+            logging.debug(f"resolve_chain key: '{key}' resolved: {arg[key]}")
+            return arg[key]
+        else:
+            logging.debug(f"resolve_chain key: '{key}' not found in {arg}")
+    return default
+
+
 class Config:
-    def __init__(self, yaml_file):
-        yaml = load_yaml(yaml_file)
-        logging.info(f"validating loaded config: {yaml}")
-        self.monitored_dir = validate_config_dir(
-            yaml.get("monitored_dir")
-            if yaml.get("monitored_dir")
-            else DEFAULT_MONITORED_DIR
+    def __init__(self, args):
+        cfg = load_yaml(
+            resolve_chain("config_file", DEFAULT_CONFIG_YAML, vars(args))
+        )
+
+        self.monitored_dir = validate_monitored_dir(
+            resolve_chain("monitored_dir", DEFAULT_MONITORED_DIR, cfg, vars(args))
         )
         self.s3_bucket = validate_s3_bucket(
-            yaml.get("s3_bucket") if yaml.get("s3_bucket") else DEFAULT_S3_BUCKET
+            resolve_chain("s3_bucket", DEFAULT_S3_BUCKET, cfg, vars(args))
         )
         self.node_name = validate_node_name(
-            yaml.get("node_name") if yaml.get("node_name") else os.uname().nodename
+            resolve_chain("node_name", DEFAULT_NODE_NAME, cfg, vars(args))
+        )
+
+        self.local_backup_dir = validate_local_backup_dir(
+            resolve_chain("local_backup_dir", DEFAULT_LOCAL_BACKUP_DIR, cfg, vars(args))
+        )
+
+        self.keep_local_backups = resolve_chain(
+            "keep_local_backups", DEFAULT_KEEP_LOCAL_BACKUPS, cfg, vars(args)
         )
 
 
 parser = argparse.ArgumentParser(
+    argument_default=argparse.SUPPRESS,
+    formatter_class=argparse.RawTextHelpFormatter,
     description="This tool monitors a config directory for changes and backups the changes to S3"
 )
 parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {VERSION}")
 parser.add_argument(
     "-c",
     "--config-file",
-    default=DEFAULT_CONFIG_YAML,
     type=str,
-    metavar="config.yaml",
-    help=f"yaml config file, default: {DEFAULT_CONFIG_YAML}",
+    help=f" yaml config file, mutually exclusive with other command line options \n default: {DEFAULT_CONFIG_YAML}",
 )
-args = parser.parse_args()
+parser.add_argument(
+    "-m",
+    "--monitored-dir",
+    type=str,
+    help=f" dir to monitor for changes \n default: {DEFAULT_MONITORED_DIR}",
+)
+parser.add_argument(
+    "-s",
+    "--s3-bucket",
+    type=str,
+    help=f" aws s3 bucket to upload backup zip files \n default: {DEFAULT_S3_BUCKET}",
+)
+parser.add_argument(
+    "-n",
+    "--node-name",
+    type=str,
+    help=f" node name to use as backup prefix on s3 \n default: {DEFAULT_NODE_NAME}",
+)
+parser.add_argument(
+    "-l",
+    "--local-backup-dir",
+    type=str,
+    help=f" local dir to store backup zip files before upload \n default: {DEFAULT_LOCAL_BACKUP_DIR}",
+)
+parser.add_argument(
+    "-k",
+    "--keep-local-backups",
+    action="store_true",
+    help=f" do not delete backup zip files after upload to s3 \n default: {DEFAULT_KEEP_LOCAL_BACKUPS}",
+)
 
-if args.config_file:
-    config = Config(args.config_file)
-else:
-    config = Config(DEFAULT_CONFIG_YAML)
+args = parser.parse_args()
+args_dict = vars(args)
+if  'config_file' in args_dict  and len(args_dict) > 1:
+    logging.error("--config-file and other options are mutually exclusive")
+    sys.exit(2)
+
+config = Config(args)
+logging.info(f"config: {config.__dict__}")
 
 
 ####################################################################################################
@@ -304,7 +376,6 @@ else:
 
 def _main():
 
-    logging.info(f"config: {config.__dict__}")
     monitor_changes()
     logging.info("ok")
 
