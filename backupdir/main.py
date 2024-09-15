@@ -361,13 +361,13 @@ parser.add_argument(
     "-n",
     "--node-name",
     type=str,
-    help=f" node name to use as backup prefix on s3 \n default: {DEFAULT_NODE_NAME}",
+    help=f" node name to use as prefix for backup file \n default: {DEFAULT_NODE_NAME}",
 )
 parser.add_argument(
     "-b",
     "--backup-name",
     type=str,
-    help=f" node name to use as backup prefix on s3 \n default: {DEFAULT_BACKUP_NAME}",
+    help=f" app name to use as suffix for backup file \n default: {DEFAULT_BACKUP_NAME}",
 )
 parser.add_argument(
     "-l",
