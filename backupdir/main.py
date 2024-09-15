@@ -14,12 +14,13 @@ import zipfile
 
 VERSION = "0.1.1-dirty"
 DEFAULT_CONFIG_YAML = "/etc/backupdir/config.yaml"
-DEFAULT_S3_BUCKET = "backupdir-backup"
+DEFAULT_S3_BUCKET = "backupdir-s3-bucket"
 DEFAULT_UPLOAD_COOLDOWN_SECONDS = 10
 DEFAULT_KEEP_LOCAL_BACKUPS = False
 DEFAULT_LOCAL_BACKUP_DIR = tempfile.gettempdir()
 DEFAULT_NODE_NAME = os.uname().nodename
-DEFAULT_MONITORED_DIR = "/etc"
+DEFAULT_MONITORED_DIR = "/etc/backupdir"
+DEFAULT_BACKUP_NAME = "backup"
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s: [%(name)s] %(message)s"
 )
@@ -153,11 +154,11 @@ def get_iso8601_timestamp(time):
 
 
 def get_local_backup_file_prefix(time):
-    return f"{config.node_name}-backup-{get_iso8601_timestamp(time)}."
+    return f"{config.node_name}-{config.backup_name}-{get_iso8601_timestamp(time)}."
 
 
 def get_s3_backup_file_name(time):
-    return f"{config.node_name}/{config.node_name}-backup-{get_iso8601_timestamp(time)}.zip"
+    return f"{config.node_name}/{config.node_name}-{config.backup_name}-{get_iso8601_timestamp(time)}.zip"
 
 
 def do_backup():
@@ -205,7 +206,7 @@ def monitor_changes():
                         logging.info(f"change detected {event_type}: {full_path}")
                         need_to_backup_config = True
             if need_to_backup_config:
-                do_backup(directory, s3_bucket)
+                do_backup()
                 need_to_backup_config = False
             else:
                 logging.debug(f"no changes detected so far in {directory}")
@@ -252,14 +253,26 @@ def validate_s3_bucket(s3_bucket):
     return s3_bucket
 
 
-def validate_node_name(node_name):
-    logging.info(f"validating node_name: {node_name}")
-    regex = r"^[a-z0-9.-]+$"
+def validate_against_regex(str, regex):
+    logging.info(f"validating '{str}' against /{regex}/")
     pattern = re.compile(regex)
-    if not pattern.match(node_name):
-        logging.error(f"does not match pattern /{regex}/   node_name: {node_name}")
+    if not pattern.match(str):
+        logging.error(f"string: {str} does not match pattern /{regex}/")
         sys.exit(13)
-    return node_name
+    return str
+
+
+def validate_node_name(name):
+    logging.info(f"validating node_name: {name}")
+    regex = r"^[a-z0-9.-]+$" # allow only lowercase letters, numbers, dots and hyphens
+    return validate_against_regex(name, regex)
+
+
+def validate_backup_name(name):
+    logging.info(f"validating backup_name: {name}")
+    regex = r"^[a-z0-9_-]+$" # allow only lowercase letters, numbers, underscores and hyphens
+    return validate_against_regex(name, regex)
+
 
 def validate_local_backup_dir(local_backup_dir):
     logging.info(f"validating local_backup_dir: {local_backup_dir}")
@@ -267,6 +280,7 @@ def validate_local_backup_dir(local_backup_dir):
         logging.error(f"directory not exists local_backup_dir: {local_backup_dir}")
         sys.exit(14)
     return os.path.realpath(local_backup_dir)
+
 
 def load_yaml(path):
     logging.info(f"loading yaml file: {path}")
@@ -280,7 +294,7 @@ def load_yaml(path):
     return config
 
 
-def resolve_chain(key, default, *args):
+def resolve_chain(key, default_value, *args):
     for arg in args:
         logging.debug(f"resolve_chain looking for key: '{key}' in {arg}")
         if key in arg and arg[key] != None:
@@ -288,38 +302,41 @@ def resolve_chain(key, default, *args):
             return arg[key]
         else:
             logging.debug(f"resolve_chain key: '{key}' not found in {arg}")
-    return default
+    logging.info(f"resolve_chain key: '{key}' fallback to default: '{default_value}'")
+    return default_value
 
 
 class Config:
-    def __init__(self, args):
-        cfg = load_yaml(
-            resolve_chain("config_file", DEFAULT_CONFIG_YAML, vars(args))
-        )
+    def __init__(self, args_dict):
+        cfg = load_yaml(resolve_chain("config_file", DEFAULT_CONFIG_YAML, args_dict))
 
         self.monitored_dir = validate_monitored_dir(
-            resolve_chain("monitored_dir", DEFAULT_MONITORED_DIR, cfg, vars(args))
+            resolve_chain("monitored_dir", DEFAULT_MONITORED_DIR, args_dict, cfg)
         )
         self.s3_bucket = validate_s3_bucket(
-            resolve_chain("s3_bucket", DEFAULT_S3_BUCKET, cfg, vars(args))
+            resolve_chain("s3_bucket", DEFAULT_S3_BUCKET, args_dict, cfg)
         )
         self.node_name = validate_node_name(
-            resolve_chain("node_name", DEFAULT_NODE_NAME, cfg, vars(args))
+            resolve_chain("node_name", DEFAULT_NODE_NAME, args_dict, cfg)
+        )
+
+        self.backup_name = validate_node_name(
+            resolve_chain("backup_name", DEFAULT_BACKUP_NAME, args_dict, cfg)
         )
 
         self.local_backup_dir = validate_local_backup_dir(
-            resolve_chain("local_backup_dir", DEFAULT_LOCAL_BACKUP_DIR, cfg, vars(args))
+            resolve_chain("local_backup_dir", DEFAULT_LOCAL_BACKUP_DIR, args_dict, cfg)
         )
 
         self.keep_local_backups = resolve_chain(
-            "keep_local_backups", DEFAULT_KEEP_LOCAL_BACKUPS, cfg, vars(args)
+            "keep_local_backups", DEFAULT_KEEP_LOCAL_BACKUPS, args_dict, cfg
         )
 
 
 parser = argparse.ArgumentParser(
     argument_default=argparse.SUPPRESS,
     formatter_class=argparse.RawTextHelpFormatter,
-    description="This tool monitors a config directory for changes and backups the changes to S3"
+    description="This tool monitors a config directory for changes and backups the changes to S3",
 )
 parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {VERSION}")
 parser.add_argument(
@@ -347,6 +364,12 @@ parser.add_argument(
     help=f" node name to use as backup prefix on s3 \n default: {DEFAULT_NODE_NAME}",
 )
 parser.add_argument(
+    "-b",
+    "--backup-name",
+    type=str,
+    help=f" node name to use as backup prefix on s3 \n default: {DEFAULT_BACKUP_NAME}",
+)
+parser.add_argument(
     "-l",
     "--local-backup-dir",
     type=str,
@@ -361,11 +384,11 @@ parser.add_argument(
 
 args = parser.parse_args()
 args_dict = vars(args)
-if  'config_file' in args_dict  and len(args_dict) > 1:
+if "config_file" in args_dict and len(args_dict) > 1:
     logging.error("--config-file and other options are mutually exclusive")
     sys.exit(2)
 
-config = Config(args)
+config = Config(args_dict)
 logging.info(f"config: {config.__dict__}")
 
 
