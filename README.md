@@ -1,4 +1,4 @@
-# python-configmon
+# backupdir
 
 A tool to monitor a directory for configuration changes, create a backup in the form of a zip file, and upload it to an AWS S3 bucket.
 
@@ -31,21 +31,21 @@ poetry shell    # Activate the Poetry virtual environment:
 poetry install  # Install dependencies
 poetry show     # List installed dependencies
 
-python python_configmon/main.py -h # show help
-python python_configmon/main.py    # run with default config
+python backupdir/main.py -h # show help
+python backupdir/main.py    # run with default config
 ```
 
 ## How to build standalone binary
 ```bash
 poetry run ./build.sh
 ```
-The generated binary will be located in `./dist/configmon`
+The generated binary will be located in `./dist/backupdir`
 
 ## Configuration
-By default, the tool looks for its configuration file at `/etc/powerfactors/configmon.yaml`. You can override this location by providing the -c option followed by the path to your custom YAML file.
+By default, the tool looks for its configuration file at `/etc/backupdir/config.yaml`. You can override this location by providing the -c option followed by the path to your custom YAML file.
 
 ```bash
-configmon -c ./config.yaml
+backupdir -c ./config.yaml
 ```
 
 ### Example Configuration File

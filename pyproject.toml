@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "python-configmon"
+name = "backupdir"
 version = "0.1.0"
 description = ""
 authors = ["Andrey Andreyev <Andrey Andreyev>"]

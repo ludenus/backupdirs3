@@ -12,8 +12,8 @@ import time
 import yaml
 import zipfile
 
-VERSION = "0.1.0"
-DEFAULT_CONFIG_YAML = "/etc/powerfactors/configmon.yaml"
+VERSION = "0.1.1-dirty"
+DEFAULT_CONFIG_YAML = "/etc/backupdir/config.yaml"
 DEFAULT_MONITORED_DIR = "/opt/n3uron/config"
 DEFAULT_S3_BUCKET = "n3uron-backup"
 DEFAULT_UPLOAD_COOLDOWN_SECONDS = 10
@@ -284,9 +284,10 @@ parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {VER
 parser.add_argument(
     "-c",
     "--config-file",
+    default=DEFAULT_CONFIG_YAML,
     type=str,
     metavar="config.yaml",
-    help=f"yaml config file to use instead of default: {DEFAULT_CONFIG_YAML}",
+    help=f"yaml config file, default: {DEFAULT_CONFIG_YAML}",
 )
 args = parser.parse_args()
 
