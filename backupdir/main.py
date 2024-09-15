@@ -8,19 +8,21 @@ import os
 import re
 import sys
 import tempfile
+import threading
 import time
 import yaml
 import zipfile
 
-VERSION = "0.1.1-dirty"
+VERSION = "0.1.1-5-g72e596c-dirty"
 DEFAULT_CONFIG_YAML = "/etc/backupdir/config.yaml"
 DEFAULT_S3_BUCKET = "backupdir-s3-bucket"
-DEFAULT_UPLOAD_COOLDOWN_SECONDS = 10
+DEFAULT_DELAY_BEFORE_UPLOAD = 10
 DEFAULT_KEEP_LOCAL_BACKUPS = False
 DEFAULT_LOCAL_BACKUP_DIR = tempfile.gettempdir()
 DEFAULT_NODE_NAME = os.uname().nodename
 DEFAULT_MONITORED_DIR = "/etc/backupdir"
 DEFAULT_BACKUP_NAME = "backup"
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s: [%(name)s] %(message)s"
 )
@@ -186,13 +188,11 @@ def monitor_changes():
     s3_bucket = config.s3_bucket
     i = inotify.adapters.InotifyTree(directory)
     logging.info(f"Monitoring started on: {directory}")
-
+    debounce_timer = None
     try:
         while True:
             need_to_backup_config = False
-            for event in i.event_gen(
-                yield_nones=False, timeout_s=DEFAULT_UPLOAD_COOLDOWN_SECONDS
-            ):
+            for event in i.event_gen(yield_nones=False):
                 (_, type_names, path, filename) = event
                 for event_type in type_names:
                     full_path = f"{path}/{filename}"
@@ -204,12 +204,14 @@ def monitor_changes():
                         "IN_MOVED_FROM",
                     ]:
                         logging.info(f"change detected {event_type}: {full_path}")
-                        need_to_backup_config = True
-            if need_to_backup_config:
-                do_backup()
-                need_to_backup_config = False
-            else:
-                logging.debug(f"no changes detected so far in {directory}")
+
+                        if debounce_timer is not None:
+                            debounce_timer.cancel()
+                        # trigger delayed backup procedure unless interrupted by a new update
+                        debounce_timer = threading.Timer(
+                            config.delay_before_upload, do_backup
+                        )
+                        debounce_timer.start()
     except KeyboardInterrupt:
         logging.info("Monitoring stopped.")
 
@@ -264,13 +266,13 @@ def validate_against_regex(str, regex):
 
 def validate_node_name(name):
     logging.info(f"validating node_name: {name}")
-    regex = r"^[a-z0-9.-]+$" # allow only lowercase letters, numbers, dots and hyphens
+    regex = r"^[a-z0-9.-]+$"  # allow only lowercase letters, numbers, dots and hyphens
     return validate_against_regex(name, regex)
 
 
 def validate_backup_name(name):
     logging.info(f"validating backup_name: {name}")
-    regex = r"^[a-z0-9_-]+$" # allow only lowercase letters, numbers, underscores and hyphens
+    regex = r"^[a-z0-9_-]+$"  # allow only lowercase letters, numbers, underscores and hyphens
     return validate_against_regex(name, regex)
 
 
@@ -280,6 +282,18 @@ def validate_local_backup_dir(local_backup_dir):
         logging.error(f"directory not exists local_backup_dir: {local_backup_dir}")
         sys.exit(14)
     return os.path.realpath(local_backup_dir)
+
+
+def validate_delay_before_upload(delay_before_upload):
+    logging.info(f"validating delay_before_upload: {delay_before_upload}")
+    try:
+        delay = int(delay_before_upload)
+        if delay < 1 and delay > 60:
+            raise ValueError
+    except ValueError:
+        logging.error(f"invalid delay_before_upload: {delay_before_upload}")
+        sys.exit(15)
+    return delay_before_upload
 
 
 def load_yaml(path):
@@ -326,6 +340,12 @@ class Config:
 
         self.local_backup_dir = validate_local_backup_dir(
             resolve_chain("local_backup_dir", DEFAULT_LOCAL_BACKUP_DIR, args_dict, cfg)
+        )
+
+        self.delay_before_upload = validate_delay_before_upload(
+            resolve_chain(
+                "delay_before_upload", DEFAULT_DELAY_BEFORE_UPLOAD, args_dict, cfg
+            )
         )
 
         self.keep_local_backups = resolve_chain(
@@ -380,6 +400,12 @@ parser.add_argument(
     "--keep-local-backups",
     action="store_true",
     help=f" do not delete backup zip files after upload to s3 \n default: {DEFAULT_KEEP_LOCAL_BACKUPS}",
+)
+parser.add_argument(
+    "-d",
+    "--delay-before-upload",
+    type=str,
+    help=f" seconds to wait after the last file update event before starting upload, valid range: [1..60] \n default: {DEFAULT_DELAY_BEFORE_UPLOAD}",
 )
 
 args = parser.parse_args()
