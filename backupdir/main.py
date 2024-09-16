@@ -8,12 +8,13 @@ import os
 import re
 import sys
 import tempfile
+# import tracemalloc
 import threading
 import time
 import yaml
 import zipfile
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 DEFAULT_CONFIG_YAML = "/etc/backupdir/config.yaml"
 DEFAULT_S3_BUCKET = "backupdir-s3-bucket"
 DEFAULT_DELAY_BEFORE_UPLOAD = 10
@@ -162,13 +163,19 @@ def get_local_backup_file_prefix(time):
 def get_s3_backup_file_name(time):
     return f"{config.node_name}/{config.node_name}-{config.backup_name}-{get_iso8601_timestamp(time)}.zip"
 
+def get_s3_backup_file_name_latest():
+    return f"{config.node_name}/{config.node_name}-{config.backup_name}-latest.zip"
+
 
 def do_backup():
     time = datetime.now(ZoneInfo("UTC"))
+    local_backup_name =get_local_backup_file_prefix(time)
+    s3_backup_name_timestamp = get_s3_backup_file_name(time)
+    s3_backup_name_latest = get_s3_backup_file_name_latest()
     temp_zip = tempfile.NamedTemporaryFile(
         delete=False,
         dir=config.local_backup_dir,
-        prefix=get_local_backup_file_prefix(time),
+        prefix=local_backup_name,
         suffix=".zip",
     )
     temp_path = os.path.realpath(temp_zip.name)
@@ -176,7 +183,8 @@ def do_backup():
         zip_directory(config.monitored_dir, temp_path)
         temp_size = os.path.getsize(temp_path)
         logging.info(f"temp zip file ({temp_size}) bytes: {temp_path}")
-        aws_s3_upload(temp_path, config.s3_bucket, get_s3_backup_file_name(time))
+        aws_s3_upload(temp_path, config.s3_bucket, s3_backup_name_timestamp)
+        aws_s3_copy(config.s3_bucket, s3_backup_name_timestamp, config.s3_bucket, s3_backup_name_latest)
     finally:
         temp_zip.close()
         if not config.keep_local_backups:
@@ -184,44 +192,73 @@ def do_backup():
 
 
 def monitor_changes():
-    directory = config.monitored_dir
-    s3_bucket = config.s3_bucket
-    i = inotify.adapters.InotifyTree(directory)
-    logging.info(f"Monitoring started on: {directory}")
+
+    i = inotify.adapters.InotifyTree(config.monitored_dir)
+    logging.info(f"Monitoring started on: {config.monitored_dir}")
+    # tracemalloc.start()
     debounce_timer = None
     try:
-        while True:
-            need_to_backup_config = False
-            for event in i.event_gen(yield_nones=False):
-                (_, type_names, path, filename) = event
-                for event_type in type_names:
-                    full_path = f"{path}/{filename}"
-                    if event_type in [
-                        "IN_DELETE",
-                        "IN_CREATE",
-                        "IN_MODIFY",
-                        "IN_MOVED_TO",
-                        "IN_MOVED_FROM",
-                    ]:
-                        logging.info(f"change detected {event_type}: {full_path}")
+        for event in i.event_gen(yield_nones=False):
+            (_, type_names, path, filename) = event
+            for event_type in type_names:
+                full_path = f"{path}/{filename}"
+                if event_type in [
+                    "IN_DELETE",
+                    "IN_CREATE",
+                    "IN_MODIFY",
+                    "IN_MOVED_TO",
+                    "IN_MOVED_FROM",
+                ]:
+                    logging.info(f"change detected {event_type}: {full_path}")
 
+                    if debounce_timer is not None:
                         if debounce_timer is not None:
                             debounce_timer.cancel()
-                        # trigger delayed backup procedure unless interrupted by a new update
-                        debounce_timer = threading.Timer(
-                            config.delay_before_upload, do_backup
-                        )
-                        debounce_timer.start()
+                    # trigger delayed backup procedure unless interrupted by a new update
+                    debounce_timer = threading.Timer(
+                        config.delay_before_upload, do_backup
+                    )
+                    debounce_timer.start()
+
+                    # current, peak = tracemalloc.get_traced_memory()
+                    # logging.info(f"Current memory usage: {current}; Peak: {peak};")
+
     except KeyboardInterrupt:
         logging.info("Monitoring stopped.")
+    finally:
+        if debounce_timer is not None:
+            debounce_timer.cancel()
 
+_s3 = None
+
+def get_s3():
+    global _s3
+    if _s3 is None:
+        _s3 = boto3.resource("s3")
+    return _s3
 
 @time_this
 def aws_s3_upload(local_file, remote_bucket, remote_file):
-    s3 = boto3.resource("s3")
-    s3.meta.client.upload_file(local_file, remote_bucket, remote_file)
+    s3_resource = get_s3()
+    s3_resource.meta.client.upload_file(
+        local_file,
+        remote_bucket,
+        remote_file,
+        # add metadata to provide traceability after file copy to latest
+        ExtraArgs={"Metadata": {"local_file": local_file, "remote_file": remote_file}},
+    )
     logging.info(f"uploaded: {local_file} to aws s3 {remote_bucket}/{remote_file}")
 
+@time_this
+def aws_s3_copy(source_bucket, source_key, destination_bucket, destination_key):
+    s3_resource = get_s3()
+    source = {
+        'Bucket': source_bucket,
+        'Key': source_key
+    }
+    # Perform the copy operation without downloading and re-uploading the file
+    s3_resource.meta.client.copy(source, destination_bucket, destination_key)
+    logging.info(f"s3 copied: {source_bucket}/{source_key} to {destination_bucket}/{destination_key}")
 
 ####################################################################################################
 # Init Config
