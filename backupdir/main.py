@@ -14,7 +14,7 @@ import time
 import yaml
 import zipfile
 
-VERSION = "0.2.2"
+VERSION = "0.2.3"
 DEFAULT_CONFIG_YAML = "/etc/backupdir/config.yaml"
 DEFAULT_S3_BUCKET = "backupdir-s3-bucket"
 DEFAULT_DELAY_BEFORE_UPLOAD = 10
@@ -301,7 +301,7 @@ def validate_against_regex(str, regex):
 
 def validate_node_name(name):
     logging.info(f"validating node_name: {name}")
-    regex = r"^[a-z0-9.-]+$"  # allow only lowercase letters, numbers, dots and hyphens
+    regex = r"^[A-Za-z0-9_.-]+$"  # allow only letters, numbers, underscores, dots and hyphens
     return validate_against_regex(name, regex)
 
 
