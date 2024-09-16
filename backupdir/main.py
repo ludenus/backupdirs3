@@ -14,7 +14,7 @@ import time
 import yaml
 import zipfile
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 DEFAULT_CONFIG_YAML = "/etc/backupdir/config.yaml"
 DEFAULT_S3_BUCKET = "backupdir-s3-bucket"
 DEFAULT_DELAY_BEFORE_UPLOAD = 10
@@ -280,13 +280,11 @@ def validate_monitored_dir(config_dir):
 
 def validate_s3_bucket(s3_bucket):
     logging.info(f"validating s3_bucket: {s3_bucket}")
-    s3 = boto3.resource("s3")
-    bucket_exists = False
-    for bucket in s3.buckets.all():
-        if s3_bucket == bucket.name:
-            bucket_exists = True
-            break
-    if not bucket_exists:
+    s3_resource = get_s3()
+    try:
+        s3_resource.meta.client.head_bucket(Bucket=s3_bucket)
+        logging.info(f"s3 bucket found: {s3_bucket}")
+    except:
         logging.error(f"s3 bucket does not exist s3_bucket: {s3_bucket}")
         sys.exit(13)
     return s3_bucket
@@ -297,7 +295,7 @@ def validate_against_regex(str, regex):
     pattern = re.compile(regex)
     if not pattern.match(str):
         logging.error(f"string: {str} does not match pattern /{regex}/")
-        sys.exit(13)
+        sys.exit(14)
     return str
 
 
@@ -317,7 +315,7 @@ def validate_local_backup_dir(local_backup_dir):
     logging.info(f"validating local_backup_dir: {local_backup_dir}")
     if not os.path.isdir(local_backup_dir):
         logging.error(f"directory not exists local_backup_dir: {local_backup_dir}")
-        sys.exit(14)
+        sys.exit(15)
     return os.path.realpath(local_backup_dir)
 
 
@@ -329,7 +327,7 @@ def validate_delay_before_upload(delay_before_upload):
             raise ValueError
     except ValueError:
         logging.error(f"invalid delay_before_upload: {delay_before_upload}")
-        sys.exit(15)
+        sys.exit(16)
     return delay_before_upload
 
 
