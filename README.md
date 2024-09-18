@@ -73,6 +73,12 @@ options:
   -d DELAY_BEFORE_UPLOAD, --delay-before-upload DELAY_BEFORE_UPLOAD
                          seconds to wait after the last file update event before starting upload, valid range: [1..60] 
                          default: 10
+  -i INCLUDE_FILES, --include-files INCLUDE_FILES
+                         files to include into backup. Can specify multiple times. If not specified, ALL files are included. 
+                         default: []
+  -x EXCLUDE_FILES, --exclude-files EXCLUDE_FILES
+                         files to exclude from backup. Can specify multiple times. If not specified, NO files are excluded. 
+                         default: []
 ```
 
 ## Configuration
@@ -124,11 +130,25 @@ delay_before_upload: 10
 # Whether to keep the local backup zip files after they are uploaded to S3
 # Set to true if you want to retain the backups locally; false to delete them after upload
 keep_local_backups: false
+
+# List of file patterns to include in the backup. If no patterns are specified, all files are included.
+# Patterns can be specified using Unix-style wildcards (e.g., "*.txt" to include all text files).
+# If not specified, all files in the monitored directory are included by default.
+include_files:
+  - "*.n3c"
+
+# List of file patterns to exclude from the backup. Any file matching these patterns will not be included.
+# Use Unix-style wildcards (e.g., "*.log" to exclude all log files).
+# If not specified, no files are excluded by default.
+exclude_files:
+  - "*.bak"
+  - "*.bkp"
+
 ```
 
 ## Future improvements
 
-1. include/exclude filters for files inside dir?
+1. include/exclude filters for files inside dir [DONE]
 2. encrypt zip archive before upload?
 3. one-time backup without monitor loop?
 4. backup to local dir only without s3 upload?

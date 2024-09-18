@@ -2,6 +2,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import argparse
 import boto3
+import fnmatch
 import inotify.adapters
 import logging
 import os
@@ -146,10 +147,11 @@ def zip_directory(folder_path, output_path):
         for root, dirs, files in os.walk(folder_path):
             for file in files:
                 file_path = os.path.join(root, file)
-                zipf.write(
-                    file_path,
-                    os.path.relpath(file_path, os.path.join(folder_path, "..")),
-                )
+                if include_in_backup(file_path):
+                    zipf.write(
+                        file_path,
+                        os.path.relpath(file_path, os.path.join(folder_path, "..")),
+                    )
 
 
 def get_iso8601_timestamp(time):
@@ -209,16 +211,19 @@ def monitor_changes():
                     "IN_MOVED_TO",
                     "IN_MOVED_FROM",
                 ]:
-                    logging.info(f"change detected {event_type}: {full_path}")
 
-                    if debounce_timer is not None:
+                    if include_in_backup(full_path):
+                        logging.info(f"change detected {event_type}: {full_path}")
                         if debounce_timer is not None:
                             debounce_timer.cancel()
-                    # trigger delayed backup procedure unless interrupted by a new update
-                    debounce_timer = threading.Timer(
-                        config.delay_before_upload, do_backup
-                    )
-                    debounce_timer.start()
+                        #trigger delayed backup procedure unless interrupted by a new update
+                        debounce_timer = threading.Timer(
+                            config.delay_before_upload, do_backup
+                        )
+                        debounce_timer.start()
+                    else:
+                        logging.info(f"change ignored {event_type}: {full_path}")
+
 
                     # current, peak = tracemalloc.get_traced_memory()
                     # logging.info(f"Current memory usage: {current}; Peak: {peak};")
@@ -228,6 +233,31 @@ def monitor_changes():
     finally:
         if debounce_timer is not None:
             debounce_timer.cancel()
+
+def include_in_backup(full_path):
+    return match_include_files(full_path) and not match_exclude_files(full_path)
+
+def match_include_files(full_path):
+    if config.include_files is None:
+        logging.debug(f"include pattern None, default match: {full_path}")
+        return True
+    for pattern in config.include_files:
+        if fnmatch.fnmatch(full_path, pattern):
+            logging.debug(f"include pattern {pattern} match: {full_path}")
+            return True
+    logging.debug(f"include pattern {config.include_files}, NO match: {full_path}")
+    return False
+
+def match_exclude_files(full_path):
+    if config.exclude_files is None:
+        logging.debug(f"exclude pattern None, default NO match: {full_path}")
+        return False
+    for pattern in config.exclude_files:
+        if fnmatch.fnmatch(full_path, pattern):
+            logging.debug(f"exclude pattern {pattern} match: {full_path}")
+            return True
+    logging.debug(f"exclude pattern {config.exclude_files} NO match: {full_path}")
+    return False
 
 _s3 = None
 
@@ -387,6 +417,14 @@ class Config:
             "keep_local_backups", DEFAULT_KEEP_LOCAL_BACKUPS, args_dict, cfg
         )
 
+        self.include_files = resolve_chain(
+            "include_files", None, args_dict, cfg
+        )
+
+        self.exclude_files = resolve_chain(
+            "exclude_files", None, args_dict, cfg
+        )
+
 
 parser = argparse.ArgumentParser(
     argument_default=argparse.SUPPRESS,
@@ -442,6 +480,21 @@ parser.add_argument(
     type=str,
     help=f" seconds to wait after the last file update event before starting upload, valid range: [1..60] \n default: {DEFAULT_DELAY_BEFORE_UPLOAD}",
 )
+parser.add_argument(
+    "-i",
+    "--include-files",
+    type=str,
+    action='append',
+    help=f" files to include into backup. Can specify multiple times. If not specified, ALL files are included. \n default: []",
+)
+parser.add_argument(
+    "-x",
+    "--exclude-files",
+    type=str,
+    action='append',
+    help=f" files to exclude from backup. Can specify multiple times. If not specified, NO files are excluded. \n default: []",
+)
+
 
 args = parser.parse_args()
 args_dict = vars(args)
