@@ -32,7 +32,7 @@ jobs:
     - name: Install poetry-dynamic-versioning plugin
       run: |
         poetry self add "poetry-dynamic-versioning"
-        poetry plugin list
+        poetry self show plugins
 
     - name: Install dependencies and build your project
       run: |
