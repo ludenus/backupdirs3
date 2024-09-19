@@ -9,13 +9,16 @@ import os
 import re
 import sys
 import tempfile
+
 # import tracemalloc
 import threading
 import time
 import yaml
 import zipfile
 
-VERSION = "0.2.3"
+# do not edit manually, VERSION is updated by build script
+VERSION = "0.0.0"
+
 DEFAULT_CONFIG_YAML = "/etc/backupdir/config.yaml"
 DEFAULT_S3_BUCKET = "backupdir-s3-bucket"
 DEFAULT_DELAY_BEFORE_UPLOAD = 10
@@ -24,6 +27,9 @@ DEFAULT_LOCAL_BACKUP_DIR = tempfile.gettempdir()
 DEFAULT_NODE_NAME = os.uname().nodename
 DEFAULT_MONITORED_DIR = "/etc/backupdir"
 DEFAULT_BACKUP_NAME = "backup"
+DEFAULT_INCLUDE_FILES = None
+DEFAULT_EXCLUDE_FILES = None
+DEFAULT_ONE_TIME_RUN = False
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s: [%(name)s] %(message)s"
@@ -165,13 +171,14 @@ def get_local_backup_file_prefix(time):
 def get_s3_backup_file_name(time):
     return f"{config.node_name}/{config.node_name}-{config.backup_name}-{get_iso8601_timestamp(time)}.zip"
 
+
 def get_s3_backup_file_name_latest():
     return f"{config.node_name}/{config.node_name}-{config.backup_name}-latest.zip"
 
 
 def do_backup():
     time = datetime.now(ZoneInfo("UTC"))
-    local_backup_name =get_local_backup_file_prefix(time)
+    local_backup_name = get_local_backup_file_prefix(time)
     s3_backup_name_timestamp = get_s3_backup_file_name(time)
     s3_backup_name_latest = get_s3_backup_file_name_latest()
     temp_zip = tempfile.NamedTemporaryFile(
@@ -186,7 +193,12 @@ def do_backup():
         temp_size = os.path.getsize(temp_path)
         logging.info(f"temp zip file ({temp_size}) bytes: {temp_path}")
         aws_s3_upload(temp_path, config.s3_bucket, s3_backup_name_timestamp)
-        aws_s3_copy(config.s3_bucket, s3_backup_name_timestamp, config.s3_bucket, s3_backup_name_latest)
+        aws_s3_copy(
+            config.s3_bucket,
+            s3_backup_name_timestamp,
+            config.s3_bucket,
+            s3_backup_name_latest,
+        )
     finally:
         temp_zip.close()
         if not config.keep_local_backups:
@@ -196,7 +208,7 @@ def do_backup():
 def monitor_changes():
 
     i = inotify.adapters.InotifyTree(config.monitored_dir)
-    logging.info(f"Monitoring started on: {config.monitored_dir}")
+    logging.info(f"monitoring started on: {config.monitored_dir}")
     # tracemalloc.start()
     debounce_timer = None
     try:
@@ -211,19 +223,17 @@ def monitor_changes():
                     "IN_MOVED_TO",
                     "IN_MOVED_FROM",
                 ]:
-
                     if include_in_backup(full_path):
                         logging.info(f"change detected {event_type}: {full_path}")
                         if debounce_timer is not None:
                             debounce_timer.cancel()
-                        #trigger delayed backup procedure unless interrupted by a new update
+                        # trigger delayed backup procedure unless interrupted by a new update
                         debounce_timer = threading.Timer(
                             config.delay_before_upload, do_backup
                         )
                         debounce_timer.start()
                     else:
                         logging.info(f"change ignored {event_type}: {full_path}")
-
 
                     # current, peak = tracemalloc.get_traced_memory()
                     # logging.info(f"Current memory usage: {current}; Peak: {peak};")
@@ -234,8 +244,10 @@ def monitor_changes():
         if debounce_timer is not None:
             debounce_timer.cancel()
 
+
 def include_in_backup(full_path):
     return match_include_files(full_path) and not match_exclude_files(full_path)
+
 
 def match_include_files(full_path):
     if config.include_files is None:
@@ -248,6 +260,7 @@ def match_include_files(full_path):
     logging.debug(f"include pattern {config.include_files}, NO match: {full_path}")
     return False
 
+
 def match_exclude_files(full_path):
     if config.exclude_files is None:
         logging.debug(f"exclude pattern None, default NO match: {full_path}")
@@ -259,13 +272,16 @@ def match_exclude_files(full_path):
     logging.debug(f"exclude pattern {config.exclude_files} NO match: {full_path}")
     return False
 
+
 _s3 = None
+
 
 def get_s3():
     global _s3
     if _s3 is None:
         _s3 = boto3.resource("s3")
     return _s3
+
 
 @time_this
 def aws_s3_upload(local_file, remote_bucket, remote_file):
@@ -279,16 +295,17 @@ def aws_s3_upload(local_file, remote_bucket, remote_file):
     )
     logging.info(f"uploaded: {local_file} to aws s3 {remote_bucket}/{remote_file}")
 
+
 @time_this
 def aws_s3_copy(source_bucket, source_key, destination_bucket, destination_key):
     s3_resource = get_s3()
-    source = {
-        'Bucket': source_bucket,
-        'Key': source_key
-    }
+    source = {"Bucket": source_bucket, "Key": source_key}
     # Perform the copy operation without downloading and re-uploading the file
     s3_resource.meta.client.copy(source, destination_bucket, destination_key)
-    logging.info(f"s3 copied: {source_bucket}/{source_key} to {destination_bucket}/{destination_key}")
+    logging.info(
+        f"s3 copied: {source_bucket}/{source_key} to {destination_bucket}/{destination_key}"
+    )
+
 
 ####################################################################################################
 # Init Config
@@ -398,31 +415,28 @@ class Config:
         self.node_name = validate_node_name(
             resolve_chain("node_name", DEFAULT_NODE_NAME, args_dict, cfg)
         )
-
         self.backup_name = validate_backup_name(
             resolve_chain("backup_name", DEFAULT_BACKUP_NAME, args_dict, cfg)
         )
-
         self.local_backup_dir = validate_local_backup_dir(
             resolve_chain("local_backup_dir", DEFAULT_LOCAL_BACKUP_DIR, args_dict, cfg)
         )
-
         self.delay_before_upload = validate_delay_before_upload(
             resolve_chain(
                 "delay_before_upload", DEFAULT_DELAY_BEFORE_UPLOAD, args_dict, cfg
             )
         )
-
         self.keep_local_backups = resolve_chain(
             "keep_local_backups", DEFAULT_KEEP_LOCAL_BACKUPS, args_dict, cfg
         )
-
         self.include_files = resolve_chain(
-            "include_files", None, args_dict, cfg
+            "include_files", DEFAULT_INCLUDE_FILES, args_dict, cfg
         )
-
         self.exclude_files = resolve_chain(
-            "exclude_files", None, args_dict, cfg
+            "exclude_files", DEFAULT_EXCLUDE_FILES, args_dict, cfg
+        )
+        self.one_time_run = resolve_chain(
+            "one_time_run", DEFAULT_ONE_TIME_RUN, args_dict, cfg
         )
 
 
@@ -484,20 +498,26 @@ parser.add_argument(
     "-i",
     "--include-files",
     type=str,
-    action='append',
+    action="append",
     help=f" files to include into backup. Can specify multiple times. If not specified, ALL files are included. \n default: []",
 )
 parser.add_argument(
     "-x",
     "--exclude-files",
     type=str,
-    action='append',
+    action="append",
     help=f" files to exclude from backup. Can specify multiple times. If not specified, NO files are excluded. \n default: []",
 )
-
+parser.add_argument(
+    "-1",
+    "--one-time-run",
+    action="store_true",
+    help=f" perform backup and exit without further monitoring. \n default: {DEFAULT_ONE_TIME_RUN}",
+)
 
 args = parser.parse_args()
 args_dict = vars(args)
+logging.info(f"args: {args_dict}")
 if "config_file" in args_dict and len(args_dict) > 1:
     logging.error("--config-file and other options are mutually exclusive")
     sys.exit(2)
@@ -512,8 +532,11 @@ logging.info(f"config: {config.__dict__}")
 
 
 def _main():
-
-    monitor_changes()
+    if config.one_time_run:
+        logging.info("perform one time backup and exit")
+        do_backup()
+    else:
+        monitor_changes()
     logging.info("ok")
 
 

@@ -79,6 +79,8 @@ options:
   -x EXCLUDE_FILES, --exclude-files EXCLUDE_FILES
                          files to exclude from backup. Can specify multiple times. If not specified, NO files are excluded. 
                          default: []
+  -1, --one-time-run     perform backup and exit without further monitoring. 
+                         default: False
 ```
 
 ## Configuration
@@ -131,24 +133,28 @@ delay_before_upload: 10
 # Set to true if you want to retain the backups locally; false to delete them after upload
 keep_local_backups: false
 
-# List of file patterns to include in the backup. If no patterns are specified, all files are included.
+# List of file patterns to include in the backup.
 # Patterns can be specified using Unix-style wildcards (e.g., "*.txt" to include all text files).
 # If not specified, all files in the monitored directory are included by default.
 include_files:
   - "*.n3c"
 
-# List of file patterns to exclude from the backup. Any file matching these patterns will not be included.
+# List of file patterns to exclude from the backup.
 # Use Unix-style wildcards (e.g., "*.log" to exclude all log files).
 # If not specified, no files are excluded by default.
 exclude_files:
   - "*.bak"
   - "*.bkp"
 
+# Do not monitor changes, perform one-time backup and exit immediately.
+# It makes more sense to specify this flag as a command line parameter rather than in config file.
+# Defaults to false.
+one_time_run: false
 ```
 
 ## Future improvements
 
 1. include/exclude filters for files inside dir [DONE]
 2. encrypt zip archive before upload?
-3. one-time backup without monitor loop?
+3. one-time backup without monitor loop [DONE]
 4. backup to local dir only without s3 upload?
