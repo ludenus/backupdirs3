@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "backupdir"
-version = "0.1.0"
+version = "0.0.0" # This is a placeholder and will be replaced by the version from poetry-dynamic-versioning
 description = ""
 authors = ["Andrey Andreyev <Andrey Andreyev>"]
 readme = "README.md"
@@ -11,6 +11,13 @@ inotify = "^0.2.10"
 boto3 = "^1.35.18"
 pyyaml = "^6.0.2"
 
+[tool.poetry-dynamic-versioning]
+enable = true
+dirty = true
+style = "pep440"
+vcs = "git"
+#pattern = "^(?P<base>[0-9]+\\.[0-9]+\\.[0-9]+)$"
+pattern = "default-unprefixed"
 
 [build-system]
 requires = ["poetry-core"]

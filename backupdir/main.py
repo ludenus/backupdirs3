@@ -16,7 +16,7 @@ import time
 import yaml
 import zipfile
 
-# do not edit manually, VERSION is updated by build script
+# This is a placeholder and will be replaced by the version from poetry-dynamic-versioning
 VERSION = "0.0.0"
 
 DEFAULT_CONFIG_YAML = "/etc/backupdir/config.yaml"
