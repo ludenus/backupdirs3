@@ -1,6 +1,6 @@
 # backupdirs3
 
-A tool to monitor a directory for configuration changes, create a backup in the form of a zip file, and upload it to an AWS S3 bucket.
+A tool to monitor a directory for changes, create a backup in the form of a zip file, and upload it to an AWS S3 bucket.
 
 ## Prerequisites
 * `curl`: Required for installing Poetry.
@@ -44,7 +44,7 @@ The generated binary will be located in `./dist/backupdirs3`
 ```
 usage: backupdirs3 [-h] [-v] [-c CONFIG_FILE] [-m MONITORED_DIR] [-s S3_BUCKET] [-n NODE_NAME] [-b BACKUP_NAME] [-l LOCAL_BACKUP_DIR] [-k] [-d DELAY_BEFORE_UPLOAD]
 
-This tool monitors a config directory for changes and backups the changes to S3
+This tool monitors a directory for changes, create a backup in the form of a zip file, and upload it to an AWS S3 bucket.
 
 options:
   -h, --help            show this help message and exit

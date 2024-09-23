@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "backupdirs3"
 version = "0.0.0" # This is a placeholder and will be replaced by the version from poetry-dynamic-versioning
-description = ""
+description = "This tool monitors a directory for changes, create a backup in the form of a zip file, and upload it to an AWS S3 bucket."
 authors = ["Andrey Andreyev <x0153362@gmail.com>"]
 readme = "README.md"
 

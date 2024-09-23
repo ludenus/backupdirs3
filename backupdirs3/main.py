@@ -350,7 +350,7 @@ class Config:
 parser = argparse.ArgumentParser(
     argument_default=argparse.SUPPRESS,
     formatter_class=argparse.RawTextHelpFormatter,
-    description="This tool monitors a config directory for changes and backups the changes to S3",
+    description="This tool monitors a directory for changes, create a backup in the form of a zip file, and upload it to an AWS S3 bucket.",
 )
 parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {VERSION}")
 parser.add_argument(
