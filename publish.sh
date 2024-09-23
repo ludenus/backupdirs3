@@ -4,7 +4,7 @@ set -x
 
 PACKAGE_NAME=backupdirs3
 VERSION=$(poetry version -s)
-EXISTS=$(curl -s https://test.pypi.org/pypi/$PACKAGE_NAME/$VERSION/json || echo "not found")
+EXISTS=$(curl -fs https://test.pypi.org/pypi/$PACKAGE_NAME/$VERSION/json || echo "not found")
 if [[ $EXISTS == "not found" ]]; then
     echo "Version $VERSION does not exist, proceeding with upload."
     poetry config repositories.testpypi https://test.pypi.org/legacy/
