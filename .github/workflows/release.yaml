@@ -45,6 +45,8 @@ jobs:
         set -x
         set -e
         poetry run ./publish.sh
+      env:
+          PYPI_TEST_TOKEN: ${{ secrets.PYPI_TEST_TOKEN }}
 
     - name: Create Release
       id: create_release
