@@ -6,10 +6,16 @@ if [ -z "$VERSION" ]; then
     [ -z "`git tag -l | head -1`" ] && git tag 0.0.1
     export VERSION="`poetry version | awk '{print $2}'`"
 fi
-    
+
+rm -rf ./dist ./build || true
+
+poetry check
 poetry install
 poetry show
-poetry export -f requirements.txt --output requirements.txt --without-hashes
+poetry build
+
+# build single file executable
+ppoetry export -f requirements.txt --output requirements.txt --without-hashes
 pip install pyinstaller
 sed -ri "s/VERSION *= *['\"].*['\"]/VERSION = \"${VERSION}\"/" ./backupdirs3/main.py
 grep 'VERSION = ' ./backupdirs3/main.py
