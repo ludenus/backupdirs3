@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write  # Ensure token has write permissions
     env:
       POETRY_HOME: /opt/poetry
       POETRY_VERSION: 1.8.3
