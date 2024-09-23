@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "backupdir"
+name = "backupdirs3"
 version = "0.0.0" # This is a placeholder and will be replaced by the version from poetry-dynamic-versioning
 description = ""
-authors = ["Andrey Andreyev <Andrey Andreyev>"]
+authors = ["Andrey Andreyev <x0153362@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]

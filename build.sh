@@ -11,11 +11,11 @@ poetry install
 poetry show
 poetry export -f requirements.txt --output requirements.txt --without-hashes
 pip install pyinstaller
-sed -ri "s/VERSION *= *['\"].*['\"]/VERSION = \"${VERSION}\"/" ./backupdir/main.py
-grep 'VERSION = ' ./backupdir/main.py
-pyinstaller --clean --noupx --onefile backupdir/main.py
+sed -ri "s/VERSION *= *['\"].*['\"]/VERSION = \"${VERSION}\"/" ./backupdirs3/main.py
+grep 'VERSION = ' ./backupdirs3/main.py
+pyinstaller --clean --noupx --onefile backupdirs3/main.py
 
 # pyi-archive_viewer -l dist/main
 
-cp ./dist/main ./dist/backupdir
+cp ./dist/main ./dist/backupdirs3
 ls -pilaF ./dist

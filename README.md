@@ -1,4 +1,4 @@
-# backupdir
+# backupdirs3
 
 A tool to monitor a directory for configuration changes, create a backup in the form of a zip file, and upload it to an AWS S3 bucket.
 
@@ -30,19 +30,19 @@ poetry shell    # Activate the Poetry virtual environment
 poetry install  # Install dependencies
 poetry show     # List installed dependencies
 
-python backupdir/main.py -h # show help
+python backupdirs3/main.py -h # show help
 ```
 
 ## How to build standalone binary
 ```bash
 poetry run ./build.sh
 ```
-The generated binary will be located in `./dist/backupdir`
+The generated binary will be located in `./dist/backupdirs3`
 
 
 ## Help
 ```
-usage: backupdir [-h] [-v] [-c CONFIG_FILE] [-m MONITORED_DIR] [-s S3_BUCKET] [-n NODE_NAME] [-b BACKUP_NAME] [-l LOCAL_BACKUP_DIR] [-k] [-d DELAY_BEFORE_UPLOAD]
+usage: backupdirs3 [-h] [-v] [-c CONFIG_FILE] [-m MONITORED_DIR] [-s S3_BUCKET] [-n NODE_NAME] [-b BACKUP_NAME] [-l LOCAL_BACKUP_DIR] [-k] [-d DELAY_BEFORE_UPLOAD]
 
 This tool monitors a config directory for changes and backups the changes to S3
 
@@ -51,13 +51,13 @@ options:
   -v, --version         show program's version number and exit
   -c CONFIG_FILE, --config-file CONFIG_FILE
                          yaml config file, mutually exclusive with other command line options 
-                         default: /etc/backupdir/config.yaml
+                         default: /etc/backupdirs3/config.yaml
   -m MONITORED_DIR, --monitored-dir MONITORED_DIR
                          dir to monitor for changes 
-                         default: /etc/backupdir
+                         default: /etc/backupdirs3
   -s S3_BUCKET, --s3-bucket S3_BUCKET
                          aws s3 bucket to upload backup zip files 
-                         default: backupdir-s3-bucket
+                         default: backupdirs3-s3-bucket
   -n NODE_NAME, --node-name NODE_NAME
                          node name to use as prefix for backup file 
                          default: thinkpad-e16gen1
@@ -84,7 +84,7 @@ options:
 ```
 
 ## Configuration
-By default, the tool looks for its configuration file at `/etc/backupdir/config.yaml`. 
+By default, the tool looks for its configuration file at `/etc/backupdirs3/config.yaml`. 
 The settings specified in the default config file are used as defaults and can be overridden by command-line options.
 
 > [!IMPORTANT]
@@ -95,7 +95,7 @@ The settings specified in the default config file are used as defaults and can b
 > * default config is ignored
 
 ```bash
-backupdir -c ./config.yaml
+backupdirs3 -c ./config.yaml
 ```
 
 ### Example Configuration File Explained
@@ -106,11 +106,11 @@ backupdir -c ./config.yaml
 # The directory to monitor for changes
 # Must be an existing directory and cannot be the root directory ('/')
 # User must have read permissions to all files within this dir
-monitored_dir: "/etc/backupdir"
+monitored_dir: "/etc/backupdirs3"
 
 # AWS S3 bucket where the backup files will be uploaded
 # This bucket must already exist, and the script should have the necessary permissions to upload to it
-s3_bucket: "backupdir-s3-bucket"
+s3_bucket: "backupdirs3-s3-bucket"
 
 # The name of the node (usually the machine's hostname) used in naming the backup files
 # Optional. If specified must only contain lowercase letters, numbers, dots, and hyphens

@@ -19,13 +19,13 @@ import zipfile
 # This is a placeholder and will be replaced by the version from poetry-dynamic-versioning
 VERSION = "0.0.0"
 
-DEFAULT_CONFIG_YAML = "/etc/backupdir/config.yaml"
-DEFAULT_S3_BUCKET = "backupdir-s3-bucket"
+DEFAULT_CONFIG_YAML = "/etc/backupdirs3/config.yaml"
+DEFAULT_S3_BUCKET = "backupdirs3-bucket"
 DEFAULT_DELAY_BEFORE_UPLOAD = 10
 DEFAULT_KEEP_LOCAL_BACKUPS = False
 DEFAULT_LOCAL_BACKUP_DIR = tempfile.gettempdir()
 DEFAULT_NODE_NAME = os.uname().nodename
-DEFAULT_MONITORED_DIR = "/etc/backupdir"
+DEFAULT_MONITORED_DIR = "/etc/backupdirs3"
 DEFAULT_BACKUP_NAME = "backup"
 DEFAULT_INCLUDE_FILES = None
 DEFAULT_EXCLUDE_FILES = None
