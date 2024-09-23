@@ -68,8 +68,8 @@ jobs:
         poetry run ./publish.sh
       env:
         PYPI_TOKEN: ${{ secrets.PYPI_TEST_TOKEN }}
-        PYPI_UPLOAD_URL: https://test.pypi.org/legacy
-        PYPI_CHECK_URL: https://test.pypi.org/pypi
+        PYPI_UPLOAD_URL: https://test.pypi.org/legacy/
+        PYPI_CHECK_URL: https://test.pypi.org/pypi/
 
     - name: Publish to PyPI Main Repo
       run: |
@@ -78,5 +78,5 @@ jobs:
         poetry run ./publish.sh
       env:
         PYPI_TOKEN: ${{ secrets.PYPI_MAIN_TOKEN }}
-        PYPI_UPLOAD_URL: https://upload.pypi.org/legacy
-        PYPI_CHECK_URL: https://pypi.org/pypi
+        PYPI_UPLOAD_URL: https://upload.pypi.org/legacy/
+        PYPI_CHECK_URL: https://pypi.org/pypi/

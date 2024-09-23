@@ -10,7 +10,7 @@ PYPI_REPO_NAME=$(echo "$PYPI_UPLOAD_URL" | awk -F[/:] '{print tolower($4)}' | tr
 PACKAGE_NAME=backupdirs3
 VERSION=$(poetry version -s)
 
-EXISTS=$(curl -fs ${PYPI_CHECK_URL}/${PACKAGE_NAME}/${VERSION}/json || echo "not found")
+EXISTS=$(curl -fs ${PYPI_CHECK_URL}${PACKAGE_NAME}/${VERSION}/json || echo "not found")
 
 if [[ $EXISTS == "not found" ]]; then
     echo "Version $VERSION does not exist, proceeding with upload."
