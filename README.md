@@ -10,13 +10,14 @@ A tool to monitor a directory for changes, create a backup in the form of a zip 
 ```
 pip install backupdirs3
 
-python backupdirs3.main.py -h
+backupdirs3 -h
 
 ```
 
 ## Help
 ```
-usage: backupdirs3 [-h] [-v] [-c CONFIG_FILE] [-m MONITORED_DIR] [-s S3_BUCKET] [-n NODE_NAME] [-b BACKUP_NAME] [-l LOCAL_BACKUP_DIR] [-k] [-d DELAY_BEFORE_UPLOAD]
+usage: backupdirs3 [-h] [-v] [-c CONFIG_FILE] [-m MONITORED_DIR] [-s S3_BUCKET] [-n NODE_NAME] [-b BACKUP_NAME]
+                   [-l LOCAL_BACKUP_DIR] [-k] [-d DELAY_BEFORE_UPLOAD] [-i INCLUDE_FILES] [-x EXCLUDE_FILES] [-1]
 
 This tool monitors a directory for changes, create a backup in the form of a zip file, and upload it to an AWS S3 bucket.
 
