@@ -15,7 +15,7 @@ poetry show
 poetry build
 
 # build single file executable
-ppoetry export -f requirements.txt --output requirements.txt --without-hashes
+poetry export -f requirements.txt --output requirements.txt --without-hashes
 pip install pyinstaller
 sed -ri "s/VERSION *= *['\"].*['\"]/VERSION = \"${VERSION}\"/" ./backupdirs3/main.py
 grep 'VERSION = ' ./backupdirs3/main.py
