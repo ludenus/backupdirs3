@@ -12,7 +12,7 @@ rm -rf ./dist ./build || true
 poetry check
 poetry install
 poetry show
-poetry build
+
 
 # build single file executable
 poetry export -f requirements.txt --output requirements.txt --without-hashes
@@ -25,3 +25,6 @@ pyinstaller --clean --noupx --onefile backupdirs3/main.py
 
 cp ./dist/main ./dist/backupdirs3
 ls -pilaF ./dist
+
+# poetry build after VERSION patched
+poetry build

@@ -3,42 +3,16 @@
 A tool to monitor a directory for changes, create a backup in the form of a zip file, and upload it to an AWS S3 bucket.
 
 ## Prerequisites
-* `curl`: Required for installing Poetry.
-* `python3`: Ensure Python 3.10+ is installed on your system.
 * `AWS credentials`: Configure AWS credentials to enable S3 uploads.
 
-## Install 
-* python poetry
-```bash
-curl -sSL https://install.python-poetry.org | python3 -
-```
-
-Update PATH your shell configuration file
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-Check poetry is installed correctly:
-
-```bash
-poetry --version
-```
 
 ## How to run
-```bash
-poetry shell    # Activate the Poetry virtual environment
-poetry install  # Install dependencies
-poetry show     # List installed dependencies
-
-python backupdirs3/main.py -h # show help
 ```
+pip install backupdirs3
 
-## How to build standalone binary
-```bash
-poetry run ./build.sh
+python backupdirs3.main.py -h
+
 ```
-The generated binary will be located in `./dist/backupdirs3`
-
 
 ## Help
 ```
