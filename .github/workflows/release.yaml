@@ -42,6 +42,26 @@ jobs:
         set -e
         poetry run ./build.sh
 
+    - name: Publish to PyPI Test Repo
+      run: |
+        set -x
+        set -e
+        poetry run ./publish.sh
+      env:
+        PYPI_TOKEN: ${{ secrets.PYPI_TEST_TOKEN }}
+        PYPI_UPLOAD_URL: https://test.pypi.org/legacy/
+        PYPI_CHECK_URL: https://test.pypi.org/pypi/
+
+    - name: Publish to PyPI Main Repo
+      run: |
+        set -x
+        set -e
+        poetry run ./publish.sh
+      env:
+        PYPI_TOKEN: ${{ secrets.PYPI_MAIN_TOKEN }}
+        PYPI_UPLOAD_URL: https://upload.pypi.org/legacy/
+        PYPI_CHECK_URL: https://pypi.org/pypi/
+
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -62,23 +82,3 @@ jobs:
         asset_path: ./dist/backupdirs3
         asset_name: backupdirs3
         asset_content_type: application/octet-stream
-
-    - name: Publish to PyPI Test Repo
-      run: |
-        set -x
-        set -e
-        poetry run ./publish.sh
-      env:
-        PYPI_TOKEN: ${{ secrets.PYPI_TEST_TOKEN }}
-        PYPI_UPLOAD_URL: https://test.pypi.org/legacy/
-        PYPI_CHECK_URL: https://test.pypi.org/pypi/
-
-    - name: Publish to PyPI Main Repo
-      run: |
-        set -x
-        set -e
-        poetry run ./publish.sh
-      env:
-        PYPI_TOKEN: ${{ secrets.PYPI_MAIN_TOKEN }}
-        PYPI_UPLOAD_URL: https://upload.pypi.org/legacy/
-        PYPI_CHECK_URL: https://pypi.org/pypi/
