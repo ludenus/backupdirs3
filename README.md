@@ -57,7 +57,7 @@ options:
                          default: /etc/backupdirs3
   -s S3_BUCKET, --s3-bucket S3_BUCKET
                          aws s3 bucket to upload backup zip files 
-                         default: backupdirs3-s3-bucket
+                         default: backupdirs3-bucket
   -n NODE_NAME, --node-name NODE_NAME
                          node name to use as prefix for backup file 
                          default: thinkpad-e16gen1
