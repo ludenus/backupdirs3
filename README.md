@@ -87,7 +87,7 @@ monitored_dir: "/etc/backupdirs3"
 # This bucket must already exist, and the script should have the necessary permissions to upload to it
 s3_bucket: "backupdirs3-s3-bucket"
 
-# The prefix (usually the machine's hostname) used in the s3 backup files names
+# The prefix (usually the machine's hostname) used in the s3 backup files names to mimic subdirectory
 # Optional. If specified must only contain lowercase letters, numbers, dots, and hyphens
 node_name: "your-node-name"
 
