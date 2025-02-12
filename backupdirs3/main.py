@@ -35,6 +35,11 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s: [%(name)s] %(message)s"
 )
 
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level, logging.INFO),
+    format="%(asctime)s %(levelname)s: [%(filename)s:%(lineno)s] %(message)s",
+)
 
 # Decorator to measure execution time of a function
 def time_this(func):
@@ -140,7 +145,7 @@ def monitor_changes():
                         )
                         debounce_timer.start()
                     else:
-                        logging.info(f"change ignored {event_type}: {full_path}")
+                        logging.debug(f"change ignored {event_type}: {full_path}")
 
                     # current, peak = tracemalloc.get_traced_memory()
                     # logging.info(f"Current memory usage: {current}; Peak: {peak};")
